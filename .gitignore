@@ -1,0 +1,17 @@
+*.o
+*.elf
+*.3dsx
+*.cia
+*.3ds
+*.bnr
+*.icn
+*.smdh
+*.lst
+*.map
+*.config
+*.files
+*.includes
+*.creator
+*.creator.user
+*.dat
+ctrsh
