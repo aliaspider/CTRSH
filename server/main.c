@@ -72,29 +72,40 @@ int main(int argc, char** argv)
 
    printf("Connection from %s\n", ctrnet_sa_to_cstr(&client_addr));
 
+   int total_size = 0;
+   u64 start_tick = svcGetSystemTick();
    if(client_addr.addr)
    {
-      int file_size = 0;
-      while(!file_size)
-         ctrnet_recv(client, &file_size, 4, 0, &client_addr);
-      DEBUG_VAR(file_size);
-
-      file_buffer = malloc(file_size);
-
-      int recv_size = 0;
-      while(recv_size < file_size)
+      int i;
+      for (i = 0; i < 5; i++)
       {
-         u32 recvd;
-         recvd = ctrnet_recv(client, file_buffer + recv_size, file_size - recv_size, 0, &client_addr);
-         DEBUG_VAR(recvd);
-         DEBUG_ERROR(recvd);
-         if(recvd < 0)
-            break;
-         recv_size += recvd;
+         int file_size = 0;
+         while(!file_size)
+            ctrnet_recv(client, &file_size, 4, 0, &client_addr);
+//         DEBUG_VAR(file_size);
 
+         file_buffer = memalign(0x1000, file_size);
+
+
+         int recv_size = 0;
+         while(recv_size < file_size)
+         {
+            u32 recvd;
+            recvd = ctrnet_recv(client, file_buffer + recv_size, file_size - recv_size, 0, &client_addr);
+//            DEBUG_VAR(recvd);
+            DEBUG_ERROR(recvd);
+            if(recvd < 0)
+               break;
+            recv_size += recvd;
+
+         }
+//         printf("recieved : %i bytes\n", recv_size);
+         total_size += recv_size;
       }
-      printf("recieved : %i bytes\n", recv_size);
    }
+   u64 end_tick = svcGetSystemTick();
+   printf("total : %i, time: %f\n", total_size, (end_tick - start_tick) / 268123480.0);
+   printf("speed: %f.0 B/s", total_size * 268123480.0 / (end_tick - start_tick));
    ctrnet_close(client);
    ctrnet_close(socket);
    ctrnet_exit();

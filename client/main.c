@@ -48,8 +48,12 @@ int main(int argc, char *argv[])
 
 
        printf("sending file\n");
-       DEBUG_ERROR(write(sockfd, &rgui_file_size, 4));
-       DEBUG_ERROR(write(sockfd, rgui_buffer, rgui_file_size));
+       int i;
+       for (i = 0; i < 5; i++)
+       {
+          DEBUG_ERROR(write(sockfd, &rgui_file_size, 4));
+          DEBUG_ERROR(write(sockfd, rgui_buffer, rgui_file_size));
+       }
        close(sockfd);
     }
 

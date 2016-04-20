@@ -13,6 +13,7 @@ static struct
    Handle handle;
    Handle sharedmem_handle;
    void* sharedmem_buffer;
+   u32 sharedmem_size;
 } ctrnet;
 
 typedef struct
@@ -62,15 +63,14 @@ static Result ctrnet_sharedmem_init(Handle memhandle, u32 memsize)
 Result ctrnet_init(u32 sharedmem_size)
 {
    Result ret;
-   sharedmem_size += 0xFFF;
-   sharedmem_size &= ~0xFFF;
-   ctrnet.sharedmem_buffer = memalign(0x1000, sharedmem_size);
+   ctrnet.sharedmem_size = (sharedmem_size + 0xFFF) & ~0xFFF;
+   ctrnet.sharedmem_buffer = memalign(0x1000, ctrnet.sharedmem_size);
 
-   if (!(ret = svcCreateMemoryBlock(&ctrnet.sharedmem_handle, (u32)ctrnet.sharedmem_buffer, sharedmem_size, 0, 3)))
+   if (!(ret = svcCreateMemoryBlock(&ctrnet.sharedmem_handle, (u32)ctrnet.sharedmem_buffer, ctrnet.sharedmem_size, 0, 3)))
    {
       if (!(ret = srvGetServiceHandle(&ctrnet.handle, "soc:U")))
       {
-         if (!(ret = ctrnet_sharedmem_init(ctrnet.sharedmem_handle, sharedmem_size)))
+         if (!(ret = ctrnet_sharedmem_init(ctrnet.sharedmem_handle, ctrnet.sharedmem_size)))
             return 0;
 
          svcCloseHandle(ctrnet.handle);
@@ -200,7 +200,7 @@ Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t*
    return command->reply.result;
 }
 
-Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* src_addr)
+Result ctrnet_recv(Handle socket, void* buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t* src_addr)
 {
    ipc_command_t* command = (len < CTRNET_TRANSFER_SIZE_THRESHOLD) ? IPC_CommandNew(0x8, 4, 2) : IPC_CommandNew(0x7, 4, 4);
    command->params[0] = (u32)socket;
@@ -235,7 +235,7 @@ Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_socka
    return command->reply.val0; // command->params[3]?
 }
 
-Result ctrnet_send(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* dst_addr)
+Result ctrnet_send(Handle socket, void* buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t* dst_addr)
 {
    ipc_command_t* command = IPC_CommandNew((len < CTRNET_TRANSFER_SIZE_THRESHOLD) ? 0xA : 0x9, 4, 6);
    command->params[0] = socket;
