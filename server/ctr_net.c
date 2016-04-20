@@ -4,8 +4,10 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include "ctr_net.h"
+#include "ctr_debug.h"
 
 static Handle ctrnet_sharedmem_handle;
+static void* ctrnet_sharedmem_buffer;
 static Handle ctrnet_handle;
 
 Result ctrnet_socU_Init(Handle memhandle, u32 memsize)
@@ -32,9 +34,9 @@ Result ctrnet_init(u32 sharedmem_size)
    Result ret;
    sharedmem_size += 0xFFF;
    sharedmem_size &= ~0xFFF;
-   void* sharedmem_buffer = memalign(0x1000, sharedmem_size);
+   ctrnet_sharedmem_buffer = memalign(0x1000, sharedmem_size);
 
-   if(!(ret = svcCreateMemoryBlock(&ctrnet_sharedmem_handle, (u32)sharedmem_buffer, sharedmem_size, 0, 3)))
+   if(!(ret = svcCreateMemoryBlock(&ctrnet_sharedmem_handle, (u32)ctrnet_sharedmem_buffer, sharedmem_size, 0, 3)))
    {
       if(!(ret = srvGetServiceHandle(&ctrnet_handle, "soc:U")))
       {
@@ -70,6 +72,8 @@ Result ctrnet_exit(void)
 
 	if((ret = svcCloseHandle(ctrnet_sharedmem_handle)))
       return ret;
+
+   free(ctrnet_sharedmem_buffer);
 
 	if((ret = ctrnet_ShutdownSockets()))
       return ret;
@@ -162,14 +166,14 @@ Result ctrnet_listen(Handle socket, int max_connections)
    return cmdbuf[2];
 }
 
-Result ctrnet_accept(Handle socket, ctrnet_sockaddr_t* client_addr, Handle* client_handle)
+Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_t* client_addr)
 {
 	Result ret;
 	u32 *cmdbuf = getThreadCommandBuffer();
 
 	cmdbuf[0] = IPC_MakeHeader(0x4,2,2); // 0x40082
 	cmdbuf[1] = (u32)socket;
-	cmdbuf[2] = (u32)client_addr;
+	cmdbuf[2] = (u32)sizeof(*client_addr);
 	cmdbuf[3] = IPC_Desc_CurProcessHandle();
 
 	u32 * staticbufs = getThreadStaticBuffers();
@@ -221,7 +225,7 @@ Result ctrnet_recvfrom(Handle socket, void *buf, size_t len, u32 flags, ctrnet_s
 	Handle ret;
 	u32 *cmdbuf = getThreadCommandBuffer();
 
-	cmdbuf[0x0] = IPC_MakeHeader(0x7,4,2); // 0x80102
+	cmdbuf[0x0] = IPC_MakeHeader(0x8,4,2); // 0x80102
 	cmdbuf[0x1] = (u32)socket;
 	cmdbuf[0x2] = (u32)len;
 	cmdbuf[0x3] = (u32)flags;

@@ -10,6 +10,7 @@ LIBCTRU_NO_DEPRECATION  = 1
 OBJS :=
 OBJS += main.o
 OBJS += ctr_net.o
+OBJS += ctr_error.o
 
 
 APP_TITLE            = CTRSH

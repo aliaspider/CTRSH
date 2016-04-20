@@ -10,7 +10,7 @@
 #include <errno.h>
 
 #define IP2INT(a, b, c, d) (a | (b << 8) | (c << 16) | (d <<24))
-#define CTR_IP    IP2INT(10, 42, 0,237)
+#define CTR_IP    IP2INT(10, 42, 0, 237)
 #define CTR_PORT  5000
 
 #define DEBUG_ERROR(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno)); exit(0);}}while(0)
