@@ -4,11 +4,6 @@
 #include <string.h>
 #include <malloc.h>
 #include <arpa/inet.h>
-#include <sys/socket.h>
-#include <sys/socket.h>
-#include <sys/_default_fcntl.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <unistd.h>
 
 #include "ctr_debug.h"
@@ -79,16 +74,14 @@ int main(int argc, char** argv)
 
    if(client_addr.addr)
    {
-      u32 total = 0;
-
-      u32 file_size = 0;
+      int file_size = 0;
       while(!file_size)
          ctrnet_recv(client, &file_size, 4, 0, &client_addr);
       DEBUG_VAR(file_size);
 
       file_buffer = malloc(file_size);
 
-      u32 recv_size = 0;
+      int recv_size = 0;
       while(recv_size < file_size)
       {
          u32 recvd;
@@ -109,7 +102,7 @@ int main(int argc, char** argv)
    if (file_buffer)
    {
       u16 fb_w, fb_h;
-      u16* top_fb = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, &fb_w, &fb_h);
+      u16* top_fb = (u16*)gfxGetFramebuffer(GFX_TOP, GFX_LEFT, &fb_w, &fb_h);
 
       int x, y;
       u16* rgui_buffer = (u16*)file_buffer;

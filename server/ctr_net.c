@@ -304,6 +304,6 @@ const char* ctrnet_sa_to_cstr(ctrnet_sockaddr_in_t* addr)
 {
    static char buffer[0x100];
    u8* ip = (u8*)&addr->addr;
-   snprintf(buffer, sizeof(buffer), "%u.%u.%u.%u:%u", (u32)ip[0], (u32)ip[1], (u32)ip[2], (u32)ip[3], ntohs(addr->port));
+   snprintf(buffer, sizeof(buffer), "%i.%i.%i.%i:%i", ip[0], ip[1], ip[2], ip[3], ntohs(addr->port));
    return buffer;
 }
