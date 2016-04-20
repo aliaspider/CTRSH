@@ -141,21 +141,15 @@ Result ctrnet_socket(Handle* socket_out)
    return command->reply.result;
 }
 
-Result ctrnet_bind(Handle socket, u32 ip, u16 port)
+Result ctrnet_bind(Handle socket, ctrnet_sockaddr_in_t* addr)
 {
    ipc_command_t* command = IPC_CommandNew(0x5, 2, 4);
 
-   ctrnet_sockaddr_t addr;
-   addr.size = sizeof(addr);
-   addr.family = AF_INET;
-   addr.port = htons(port);
-   addr.ip = ip;
-
    command->params[0] = (u32)socket;
-   command->params[1] = sizeof(addr);
+   command->params[1] = sizeof(*addr);
    command->params[2] = IPC_Desc_CurProcessHandle();
-   command->params[4] = IPC_Desc_StaticBuffer(sizeof(addr), 0);
-   command->params[5] = (u32)&addr;
+   command->params[4] = IPC_Desc_StaticBuffer(sizeof(*addr), 0);
+   command->params[5] = (u32)addr;
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -186,7 +180,7 @@ Result ctrnet_listen(Handle socket, int max_connections)
    return command->reply.val0;
 }
 
-Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_t* client_addr)
+Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t* client_addr)
 {
    ipc_command_t* command = IPC_CommandNew(0x4, 2, 2);
    command->params[0] = (u32)socket;
@@ -205,9 +199,7 @@ Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_t* cl
    return command->reply.result;
 }
 
-
-
-Result ctrnet_recvfrom_other(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* src_addr)
+Result ctrnet_recvfrom_other(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* src_addr)
 {
    ipc_command_t* command = IPC_CommandNew(0x7, 4, 4);
    command->params[0] = (u32)socket;
@@ -232,7 +224,7 @@ Result ctrnet_recvfrom_other(Handle socket, void* buf, size_t len, u32 flags, ct
    return command->reply.val0; // command->params[3]?
 }
 
-Result ctrnet_recvfrom(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* src_addr)
+Result ctrnet_recvfrom(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* src_addr)
 {
    ipc_command_t* command = IPC_CommandNew(0x8, 4, 2);
    command->params[0] = (u32)socket;
@@ -257,7 +249,7 @@ Result ctrnet_recvfrom(Handle socket, void* buf, size_t len, u32 flags, ctrnet_s
    return command->reply.val0; // command->reply.val1?
 }
 
-Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* src_addr)
+Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* src_addr)
 {
    if (len < 0x2000)
       return ctrnet_recvfrom_other(socket, buf, len, flags, src_addr);
@@ -265,7 +257,7 @@ Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_socka
    return ctrnet_recvfrom_other(socket, buf, len, flags, src_addr);
 }
 
-Result ctrnet_sendto_other(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* dst_addr)
+Result ctrnet_sendto_other(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* dst_addr)
 {
    ipc_command_t* command = IPC_CommandNew(0x9, 4, 6);
    command->params[0] = socket;
@@ -289,7 +281,7 @@ Result ctrnet_sendto_other(Handle socket, void* buf, size_t len, u32 flags, ctrn
    return command->reply.val0; // command->reply.val1?
 }
 
-Result ctrnet_sendto(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* dst_addr)
+Result ctrnet_sendto(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* dst_addr)
 {
    ipc_command_t* command = IPC_CommandNew(0xA, 4, 6);
    command->params[0] = (u32)socket;
@@ -313,7 +305,7 @@ Result ctrnet_sendto(Handle socket, void* buf, size_t len, u32 flags, ctrnet_soc
    return command->reply.val0; // command->reply.val1?
 }
 
-Result ctrnet_send(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* dst_addr)
+Result ctrnet_send(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* dst_addr)
 {
    if (len < 0x2000)
       return ctrnet_sendto(socket, buf, len, flags, dst_addr);
@@ -353,3 +345,10 @@ Result ctrnet_close_sockets(void)
 }
 
 
+const char* ctrnet_sa_to_cstr(ctrnet_sockaddr_in_t* addr)
+{
+   static char buffer[0x100];
+   u8* ip = (u8*)&addr->addr;
+   snprintf(buffer, sizeof(buffer), "%u.%u.%u.%u:%u", (u32)ip[0], (u32)ip[1], (u32)ip[2], (u32)ip[3], ntohs(addr->port));
+   return buffer;
+}

@@ -48,43 +48,36 @@ int main(int argc, char** argv)
 
    Handle socket;
    Handle client;
-   ctrnet_sockaddr_t client_addr = {0};
-   u32 host_id;
+   ctrnet_sockaddr_in_t host_addr = {0};
+   ctrnet_sockaddr_in_t client_addr = {0};
+
    u32 frames = 0;
    u8* file_buffer = NULL;
 
    DEBUG_ERROR(ctrnet_init(0x100000));
-   DEBUG_ERROR(ctrnet_gethostid(&host_id));
+
+   host_addr.size = sizeof(host_addr);
+   host_addr.family = AF_INET;
+   host_addr.port = htons(5000);
+   DEBUG_ERROR(ctrnet_gethostid(&host_addr.addr));
    DEBUG_ERROR(ctrnet_socket(&socket));
-   DEBUG_ERROR(ctrnet_bind(socket, host_id, 5000));
+   DEBUG_ERROR(ctrnet_bind(socket, &host_addr));
    DEBUG_ERROR(ctrnet_listen(socket, 1));
 
-   printf("[x] IP %s:%d\n", inet_ntoa(*(struct in_addr*)&host_id), 5000);
+   printf("IP %s\n", ctrnet_sa_to_cstr(&host_addr));
 
    do
    {
-      hidScanInput();
-      u32 kDown = hidKeysDown();
-
-      if (kDown & KEY_B)
-      {
-         printf("[!] Aborted\n");
-         ctrnet_close(socket);
-         break;
-      }
-
       Result ret = ctrnet_accept(socket, &client, &client_addr);
       DEBUG_ERROR(ret);
-
       if (!ret)
          break;
    }
    while (aptMainLoop());
 
-   printf("[x] Connection from %s:%d\n", inet_ntoa(*(struct in_addr*)&client_addr.ip),
-          ntohs(client_addr.port));
+   printf("Connection from %s\n", ctrnet_sa_to_cstr(&client_addr));
 
-   if(client_addr.ip)
+   if(client_addr.addr)
    {
       u32 total = 0;
 
@@ -108,9 +101,6 @@ int main(int argc, char** argv)
 
       }
       printf("recieved : %i bytes\n", recv_size);
-
-//      const char* answer_str = "3DS says hi !!";
-//      ctrnet_send(client, answer_str, strlen(answer_str) + 1, 0, &client_addr);
    }
    ctrnet_close(client);
    ctrnet_close(socket);
