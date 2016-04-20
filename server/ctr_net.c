@@ -6,26 +6,55 @@
 #include "ctr_net.h"
 #include "ctr_debug.h"
 
-static Handle ctrnet_sharedmem_handle;
-static void* ctrnet_sharedmem_buffer;
-static Handle ctrnet_handle;
-
-Result ctrnet_socU_Init(Handle memhandle, u32 memsize)
+static struct
 {
-	Result ret = 0;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   Handle handle;
+   Handle sharedmem_handle;
+   void* sharedmem_buffer;
+} ctrnet;
 
-	cmdbuf[0] = IPC_MakeHeader(0x1,1,4); // 0x10044
-	cmdbuf[1] = memsize;
-	cmdbuf[2] = IPC_Desc_CurProcessHandle();
-	cmdbuf[4] = IPC_Desc_SharedHandles(1);
-	cmdbuf[5] = memhandle;
+typedef struct
+{
+   u32 header;
+   union
+   {
+      struct
+      {
+         u32 params[0x3F];
+         u32 static_buffer[0x20];
+      };
+      struct
+      {
+         Result result;
+         u32 val0;
+         u32 val1;
+      }reply;
+   };
+} ipc_command_t;
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+__attribute((always_inline))
+static inline ipc_command_t* IPC_CommandNew(u32 id, u32 normal_params, u32 translate_params)
+{
+   ipc_command_t* cmd = (ipc_command_t*)((u32)getThreadLocalStorage() + 0x80);
+   cmd->header = IPC_MakeHeader(id, normal_params, translate_params);
+   return cmd;
+}
 
-	return cmdbuf[1];
+static Result ctrnet_sharedmem_init(Handle memhandle, u32 memsize)
+{
+   ipc_command_t* command = IPC_CommandNew(0x1, 1, 4);
+
+   command->params[0] = memsize;
+   command->params[1] = IPC_Desc_CurProcessHandle();
+   command->params[3] = IPC_Desc_SharedHandles(1);
+   command->params[4] = memhandle;
+
+   Result res = svcSendSyncRequest(ctrnet.handle);
+
+   if (res)
+      return res;
+
+   return command->reply.result;
 }
 
 
@@ -34,94 +63,87 @@ Result ctrnet_init(u32 sharedmem_size)
    Result ret;
    sharedmem_size += 0xFFF;
    sharedmem_size &= ~0xFFF;
-   ctrnet_sharedmem_buffer = memalign(0x1000, sharedmem_size);
+   ctrnet.sharedmem_buffer = memalign(0x1000, sharedmem_size);
 
-   if(!(ret = svcCreateMemoryBlock(&ctrnet_sharedmem_handle, (u32)ctrnet_sharedmem_buffer, sharedmem_size, 0, 3)))
+   if (!(ret = svcCreateMemoryBlock(&ctrnet.sharedmem_handle, (u32)ctrnet.sharedmem_buffer, sharedmem_size, 0, 3)))
    {
-      if(!(ret = srvGetServiceHandle(&ctrnet_handle, "soc:U")))
+      if (!(ret = srvGetServiceHandle(&ctrnet.handle, "soc:U")))
       {
-         if(!(ret = ctrnet_socU_Init(ctrnet_sharedmem_handle, sharedmem_size)))
+         if (!(ret = ctrnet_sharedmem_init(ctrnet.sharedmem_handle, sharedmem_size)))
             return 0;
 
-         svcCloseHandle(ctrnet_handle);
+         svcCloseHandle(ctrnet.handle);
       }
-      svcCloseHandle(ctrnet_sharedmem_handle);
+
+      svcCloseHandle(ctrnet.sharedmem_handle);
    }
 
    return ret;
 }
 
-
-static Result ctrnet_ShutdownSockets(void)
+static Result ctrnet_sharedmem_deinit(void)
 {
-	Result ret = 0;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x19, 0, 0);
 
-	cmdbuf[0] = IPC_MakeHeader(0x19,0,0); // 0x190000
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+   if (res)
+      return res;
 
-	return cmdbuf[1];
+   return command->reply.result;
 }
 
 Result ctrnet_exit(void)
 {
-	Result ret;
+   Result ret;
 
-	if((ret = svcCloseHandle(ctrnet_sharedmem_handle)))
+   if ((ret = ctrnet_sharedmem_deinit()))
       return ret;
 
-   free(ctrnet_sharedmem_buffer);
-
-	if((ret = ctrnet_ShutdownSockets()))
+   if ((ret = svcCloseHandle(ctrnet.handle)))
       return ret;
 
-	ret = svcCloseHandle(ctrnet_handle);
-	return ret;
+   ret = svcCloseHandle(ctrnet.sharedmem_handle);
+   free(ctrnet.sharedmem_buffer);
+   return ret;
 }
 
 
 Result ctrnet_gethostid(u32* ip_out)
 {
-	int ret = 0;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x16, 0, 0);
 
-	cmdbuf[0] = IPC_MakeHeader(0x16,0,0); // 0x160000
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+   if (res)
+      return res;
 
-	*ip_out = cmdbuf[2];
+   *ip_out = command->reply.val0;
 
-	return cmdbuf[1];
+   return command->reply.result;
 }
 
 Result ctrnet_socket(Handle* socket_out)
 {
-	int ret = 0;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x2, 3, 2);
 
-	cmdbuf[0] = IPC_MakeHeader(0x2,3,2); // 0x200C2
-	cmdbuf[1] = AF_INET;
-	cmdbuf[2] = SOCK_STREAM;
-	cmdbuf[3] = 0;
-	cmdbuf[4] = IPC_Desc_CurProcessHandle();
+   command->params[0] = AF_INET;
+   command->params[1] = SOCK_STREAM;
+   command->params[2] = 0;
+   command->params[3] = IPC_Desc_CurProcessHandle();
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	*socket_out = cmdbuf[2];
-	return cmdbuf[1];
+   if (res)
+      return res;
+
+   *socket_out = command->reply.val0;
+   return command->reply.result;
 }
 
 Result ctrnet_bind(Handle socket, u32 ip, u16 port)
 {
-	int ret;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x5, 2, 4);
 
    ctrnet_sockaddr_t addr;
    addr.size = sizeof(addr);
@@ -129,221 +151,205 @@ Result ctrnet_bind(Handle socket, u32 ip, u16 port)
    addr.port = htons(port);
    addr.ip = ip;
 
-	cmdbuf[0] = IPC_MakeHeader(0x5,2,4); // 0x50084
-	cmdbuf[1] = (u32)socket;
-	cmdbuf[2] = sizeof(addr);
-	cmdbuf[3] = IPC_Desc_CurProcessHandle();
-	cmdbuf[5] = IPC_Desc_StaticBuffer(sizeof(addr),0);
-	cmdbuf[6] = (u32)&addr;
+   command->params[0] = (u32)socket;
+   command->params[1] = sizeof(addr);
+   command->params[2] = IPC_Desc_CurProcessHandle();
+   command->params[4] = IPC_Desc_StaticBuffer(sizeof(addr), 0);
+   command->params[5] = (u32)&addr;
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-   if(cmdbuf[1])
-      return cmdbuf[1];
+   if (res)
+      return res;
 
-   return cmdbuf[2];
+   if (command->reply.result)
+      return command->reply.result;
+
+   return command->reply.val0;
 }
 
 Result ctrnet_listen(Handle socket, int max_connections)
 {
-	int ret;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x3, 2, 2);
+   command->params[0] = (u32)socket;
+   command->params[1] = (u32)max_connections;
+   command->params[2] = IPC_Desc_CurProcessHandle();
 
-	cmdbuf[0] = IPC_MakeHeader(0x3,2,2); // 0x30082
-	cmdbuf[1] = (u32)socket;
-	cmdbuf[2] = (u32)max_connections;
-	cmdbuf[3] = IPC_Desc_CurProcessHandle();
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+   if (res)
+      return res;
 
-   if(cmdbuf[1])
-      return cmdbuf[1];
+   if (command->reply.result)
+      return command->reply.result;
 
-   return cmdbuf[2];
+   return command->reply.val0;
 }
 
 Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_t* client_addr)
 {
-	Result ret;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x4, 2, 2);
+   command->params[0] = (u32)socket;
+   command->params[1] = (u32)sizeof(*client_addr);
+   command->params[2] = IPC_Desc_CurProcessHandle();
+   command->static_buffer[0] = IPC_Desc_StaticBuffer(sizeof(*client_addr), 0);
+   command->static_buffer[1] = (u32)client_addr;
 
-	cmdbuf[0] = IPC_MakeHeader(0x4,2,2); // 0x40082
-	cmdbuf[1] = (u32)socket;
-	cmdbuf[2] = (u32)sizeof(*client_addr);
-	cmdbuf[3] = IPC_Desc_CurProcessHandle();
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	u32 * staticbufs = getThreadStaticBuffers();
+   if (res)
+      return res;
 
-	staticbufs[0] = IPC_Desc_StaticBuffer(sizeof(*client_addr),0);
-	staticbufs[1] = (u32)client_addr;
+   *client_handle = command->reply.val0;
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-   if(ret)
-      return ret;
-
-   *client_handle = cmdbuf[2];
-
-   return cmdbuf[1];
+   return command->reply.result;
 }
 
 
 
-Result ctrnet_recvfrom_other(Handle socket, void *buf, size_t len, u32 flags, ctrnet_sockaddr_t *src_addr)
+Result ctrnet_recvfrom_other(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* src_addr)
 {
-	int ret = 0;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x7, 4, 4);
+   command->params[0] = (u32)socket;
+   command->params[1] = (u32)len;
+   command->params[2] = (u32)flags;
+   command->params[3] = (u32)sizeof(*src_addr);
+   command->params[4] = IPC_Desc_CurProcessHandle();
+   command->params[6] = IPC_Desc_Buffer(len, IPC_BUFFER_W);
+   command->params[7] = (u32)buf;
 
-	cmdbuf[0] = IPC_MakeHeader(0x7,4,4); // 0x70104
-	cmdbuf[1] = (u32)socket;
-	cmdbuf[2] = (u32)len;
-	cmdbuf[3] = (u32)flags;
-	cmdbuf[4] = (u32)sizeof(*src_addr);
-	cmdbuf[5] = IPC_Desc_CurProcessHandle();
-	cmdbuf[7] = IPC_Desc_Buffer(len,IPC_BUFFER_W);
-	cmdbuf[8] = (u32)buf;
+   command->static_buffer[0] = IPC_Desc_StaticBuffer(sizeof(*src_addr), 0);
+   command->static_buffer[1] = (u32)src_addr;
 
-	cmdbuf[0x40] = IPC_Desc_StaticBuffer(sizeof(*src_addr),0);
-	cmdbuf[0x41] = (u32)src_addr;
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	ret = svcSendSyncRequest(ctrnet_handle);
+   if (res)
+      return res;
 
-   if(ret)
-		return ret;
+   if (command->reply.result)
+      return command->reply.result;
 
-   if(cmdbuf[1])
-      return (Result)cmdbuf[1];
-
-   return cmdbuf[2]; // cmdbuf[3]?
+   return command->reply.val0; // command->params[3]?
 }
 
-Result ctrnet_recvfrom(Handle socket, void *buf, size_t len, u32 flags, ctrnet_sockaddr_t *src_addr)
+Result ctrnet_recvfrom(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* src_addr)
 {
-	Handle ret;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x8, 4, 2);
+   command->params[0] = (u32)socket;
+   command->params[1] = (u32)len;
+   command->params[2] = (u32)flags;
+   command->params[3] = (u32)sizeof(*src_addr);
+   command->params[4] = IPC_Desc_CurProcessHandle();
 
-	cmdbuf[0x0] = IPC_MakeHeader(0x8,4,2); // 0x80102
-	cmdbuf[0x1] = (u32)socket;
-	cmdbuf[0x2] = (u32)len;
-	cmdbuf[0x3] = (u32)flags;
-	cmdbuf[0x4] = (u32)sizeof(*src_addr);
-	cmdbuf[0x5] = IPC_Desc_CurProcessHandle();
+   command->static_buffer[0] = (((u32)len) << 14) | 2;
+   command->static_buffer[1] = (u32)buf;
+   command->static_buffer[2] = ((sizeof(*src_addr)) << 14) | 2;
+   command->static_buffer[3] = (u32)src_addr;
 
-	cmdbuf[0x40] = (((u32)len)<<14) | 2;
-	cmdbuf[0x41] = (u32)buf;
-	cmdbuf[0x42] = ((sizeof(*src_addr))<<14) | 2;
-	cmdbuf[0x43] = (u32)src_addr;
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+   if (res)
+      return res;
 
-   if(cmdbuf[1])
-      return (Result)cmdbuf[1];
+   if (command->reply.result)
+      return command->reply.result;
 
-   return cmdbuf[2]; // cmdbuf[3]?
+   return command->reply.val0; // command->reply.val1?
 }
 
-Result ctrnet_recv(Handle socket, void *buf, size_t len, u32 flags, ctrnet_sockaddr_t *src_addr)
+Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* src_addr)
 {
-	if(len < 0x2000)
-		return ctrnet_recvfrom(socket, buf, len, flags, src_addr);
-	return ctrnet_recvfrom_other(socket, buf, len, flags, src_addr);
+   if (len < 0x2000)
+      return ctrnet_recvfrom_other(socket, buf, len, flags, src_addr);
+
+   return ctrnet_recvfrom_other(socket, buf, len, flags, src_addr);
 }
 
-Result ctrnet_sendto_other(Handle socket, void *buf, size_t len, u32 flags, ctrnet_sockaddr_t *dst_addr)
+Result ctrnet_sendto_other(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* dst_addr)
 {
-	Result ret;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x9, 4, 6);
+   command->params[0] = socket;
+   command->params[1] = len;
+   command->params[2] = flags;
+   command->params[3] = sizeof(*dst_addr);
+   command->params[4] = IPC_Desc_CurProcessHandle();
+   command->params[6] = IPC_Desc_StaticBuffer(sizeof(*dst_addr), 1);
+   command->params[7] = (u32)dst_addr;
+   command->params[8] = IPC_Desc_Buffer(len, IPC_BUFFER_R);
+   command->params[9] = (u32)buf;
 
-	cmdbuf[0] = IPC_MakeHeader(0x9,4,6); // 0x90106
-	cmdbuf[1] = (u32)socket;
-	cmdbuf[2] = len;
-	cmdbuf[3] = flags;
-	cmdbuf[4] = sizeof(*dst_addr);
-	cmdbuf[5] = IPC_Desc_CurProcessHandle();
-	cmdbuf[7] = IPC_Desc_StaticBuffer(sizeof(*dst_addr),1);
-	cmdbuf[8] = (u32)dst_addr;
-	cmdbuf[9] = IPC_Desc_Buffer(len,IPC_BUFFER_R);
-	cmdbuf[10] = (u32)buf;
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+   if (res)
+      return res;
 
-   if(cmdbuf[1])
-      return (Result)cmdbuf[1];
+   if (command->reply.result)
+      return command->reply.result;
 
-   return cmdbuf[2]; // cmdbuf[3]?
+   return command->reply.val0; // command->reply.val1?
 }
 
-Result ctrnet_sendto(Handle socket, void *buf, size_t len, u32 flags, ctrnet_sockaddr_t *dst_addr)
+Result ctrnet_sendto(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* dst_addr)
 {
-	int ret = 0;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0xA, 4, 6);
+   command->params[0] = (u32)socket;
+   command->params[1] = len;
+   command->params[2] = flags;
+   command->params[3] = sizeof(*dst_addr);
+   command->params[4] = IPC_Desc_CurProcessHandle();
+   command->params[6] = IPC_Desc_StaticBuffer(len, 2);
+   command->params[7] = (u32)buf;
+   command->params[8] = IPC_Desc_StaticBuffer(sizeof(*dst_addr), 1);
+   command->params[9] = (u32)dst_addr;
 
-	cmdbuf[0] = IPC_MakeHeader(0xA,4,6); // 0xA0106
-	cmdbuf[1] = (u32)socket;
-	cmdbuf[2] = len;
-	cmdbuf[3] = flags;
-	cmdbuf[4] = sizeof(*dst_addr);
-	cmdbuf[5] = IPC_Desc_CurProcessHandle();
-	cmdbuf[7] = IPC_Desc_StaticBuffer(len,2);
-	cmdbuf[8] = (u32)buf;
-	cmdbuf[9] = IPC_Desc_StaticBuffer(sizeof(*dst_addr),1);
-	cmdbuf[10] = (u32)dst_addr;
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+   if (res)
+      return res;
 
-   if(cmdbuf[1])
-      return (Result)cmdbuf[1];
+   if (command->reply.result)
+      return command->reply.result;
 
-   return cmdbuf[2]; // cmdbuf[3]?
+   return command->reply.val0; // command->reply.val1?
 }
 
-Result ctrnet_send(Handle socket, void *buf, size_t len, u32 flags, ctrnet_sockaddr_t *dst_addr)
+Result ctrnet_send(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_t* dst_addr)
 {
-	if(len < 0x2000)
-		return ctrnet_sendto(socket, buf, len, flags, dst_addr);
-	return ctrnet_sendto_other(socket, buf, len, flags, dst_addr);
+   if (len < 0x2000)
+      return ctrnet_sendto(socket, buf, len, flags, dst_addr);
+
+   return ctrnet_sendto_other(socket, buf, len, flags, dst_addr);
 }
 
 Result ctrnet_close(Handle socket)
 {
-	int ret = 0;
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0xB, 1, 2);
+   command->params[0] = socket;
+   command->params[1] = IPC_Desc_CurProcessHandle();
 
-	cmdbuf[0] = IPC_MakeHeader(0xB,1,2); // 0xB0042
-	cmdbuf[1] = socket;
-	cmdbuf[2] = IPC_Desc_CurProcessHandle();
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-		return ret;
+   if (res)
+      return res;
 
-   if(cmdbuf[1])
-      return (Result)cmdbuf[1];
+   if (command->reply.result)
+      return command->reply.result;
 
-   return cmdbuf[2];
+   return command->reply.val0;
 }
 
 
 Result ctrnet_close_sockets(void)
 {
-	u32 *cmdbuf = getThreadCommandBuffer();
+   ipc_command_t* command = IPC_CommandNew(0x21, 0, 2);
+   command->params[0] = IPC_Desc_CurProcessHandle();
 
-	cmdbuf[0] = IPC_MakeHeader(0x21,0,2); // 0x210002;
-	cmdbuf[1] = IPC_Desc_CurProcessHandle();
+   Result res = svcSendSyncRequest(ctrnet.handle);
 
-	int ret = svcSendSyncRequest(ctrnet_handle);
-	if(ret)
-      return ret;
-	return cmdbuf[1];
+   if (res)
+      return res;
+
+   return command->reply.result;
 }
 
 

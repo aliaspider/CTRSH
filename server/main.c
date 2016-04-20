@@ -100,7 +100,8 @@ int main(int argc, char** argv)
       {
          u32 recvd;
          recvd = ctrnet_recv(client, file_buffer + recv_size, file_size - recv_size, 0, &client_addr);
-         DEBUG_CERROR(recvd);
+         DEBUG_VAR(recvd);
+         DEBUG_ERROR(recvd);
          if(recvd < 0)
             break;
          recv_size += recvd;
