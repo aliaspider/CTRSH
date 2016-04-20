@@ -28,7 +28,7 @@ typedef struct
          Result result;
          u32 val0;
          u32 val1;
-      }reply;
+      } reply;
    };
 } ipc_command_t;
 
@@ -56,7 +56,6 @@ static Result ctrnet_sharedmem_init(Handle memhandle, u32 memsize)
 
    return command->reply.result;
 }
-
 
 Result ctrnet_init(u32 sharedmem_size)
 {
@@ -199,19 +198,29 @@ Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t*
    return command->reply.result;
 }
 
-Result ctrnet_recvfrom_other(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* src_addr)
+Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* src_addr)
 {
-   ipc_command_t* command = IPC_CommandNew(0x7, 4, 4);
+   ipc_command_t* command = (len < 0x2000) ? IPC_CommandNew(0x8, 4, 2) : IPC_CommandNew(0x7, 4, 4);
    command->params[0] = (u32)socket;
    command->params[1] = (u32)len;
    command->params[2] = (u32)flags;
    command->params[3] = (u32)sizeof(*src_addr);
    command->params[4] = IPC_Desc_CurProcessHandle();
-   command->params[6] = IPC_Desc_Buffer(len, IPC_BUFFER_W);
-   command->params[7] = (u32)buf;
 
-   command->static_buffer[0] = IPC_Desc_StaticBuffer(sizeof(*src_addr), 0);
-   command->static_buffer[1] = (u32)src_addr;
+   if (len < 0x2000)
+   {
+      command->static_buffer[0] = (((u32)len) << 14) | 2;
+      command->static_buffer[1] = (u32)buf;
+      command->static_buffer[2] = ((sizeof(*src_addr)) << 14) | 2;
+      command->static_buffer[3] = (u32)src_addr;
+   }
+   else
+   {
+      command->params[6] = IPC_Desc_Buffer(len, IPC_BUFFER_W);
+      command->params[7] = (u32)buf;
+      command->static_buffer[0] = IPC_Desc_StaticBuffer(sizeof(*src_addr), 0);
+      command->static_buffer[1] = (u32)src_addr;
+   }
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -224,93 +233,39 @@ Result ctrnet_recvfrom_other(Handle socket, void* buf, size_t len, u32 flags, ct
    return command->reply.val0; // command->params[3]?
 }
 
-Result ctrnet_recvfrom(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* src_addr)
+Result ctrnet_send(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* dst_addr)
 {
-   ipc_command_t* command = IPC_CommandNew(0x8, 4, 2);
-   command->params[0] = (u32)socket;
-   command->params[1] = (u32)len;
-   command->params[2] = (u32)flags;
-   command->params[3] = (u32)sizeof(*src_addr);
-   command->params[4] = IPC_Desc_CurProcessHandle();
-
-   command->static_buffer[0] = (((u32)len) << 14) | 2;
-   command->static_buffer[1] = (u32)buf;
-   command->static_buffer[2] = ((sizeof(*src_addr)) << 14) | 2;
-   command->static_buffer[3] = (u32)src_addr;
-
-   Result res = svcSendSyncRequest(ctrnet.handle);
-
-   if (res)
-      return res;
-
-   if (command->reply.result)
-      return command->reply.result;
-
-   return command->reply.val0; // command->reply.val1?
-}
-
-Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* src_addr)
-{
-   if (len < 0x2000)
-      return ctrnet_recvfrom_other(socket, buf, len, flags, src_addr);
-
-   return ctrnet_recvfrom_other(socket, buf, len, flags, src_addr);
-}
-
-Result ctrnet_sendto_other(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* dst_addr)
-{
-   ipc_command_t* command = IPC_CommandNew(0x9, 4, 6);
+   ipc_command_t* command = IPC_CommandNew((len < 0x2000) ? 0xA : 0x9, 4, 6);
    command->params[0] = socket;
    command->params[1] = len;
    command->params[2] = flags;
    command->params[3] = sizeof(*dst_addr);
    command->params[4] = IPC_Desc_CurProcessHandle();
-   command->params[6] = IPC_Desc_StaticBuffer(sizeof(*dst_addr), 1);
-   command->params[7] = (u32)dst_addr;
-   command->params[8] = IPC_Desc_Buffer(len, IPC_BUFFER_R);
-   command->params[9] = (u32)buf;
 
-   Result res = svcSendSyncRequest(ctrnet.handle);
-
-   if (res)
-      return res;
-
-   if (command->reply.result)
-      return command->reply.result;
-
-   return command->reply.val0; // command->reply.val1?
-}
-
-Result ctrnet_sendto(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* dst_addr)
-{
-   ipc_command_t* command = IPC_CommandNew(0xA, 4, 6);
-   command->params[0] = (u32)socket;
-   command->params[1] = len;
-   command->params[2] = flags;
-   command->params[3] = sizeof(*dst_addr);
-   command->params[4] = IPC_Desc_CurProcessHandle();
-   command->params[6] = IPC_Desc_StaticBuffer(len, 2);
-   command->params[7] = (u32)buf;
-   command->params[8] = IPC_Desc_StaticBuffer(sizeof(*dst_addr), 1);
-   command->params[9] = (u32)dst_addr;
-
-   Result res = svcSendSyncRequest(ctrnet.handle);
-
-   if (res)
-      return res;
-
-   if (command->reply.result)
-      return command->reply.result;
-
-   return command->reply.val0; // command->reply.val1?
-}
-
-Result ctrnet_send(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* dst_addr)
-{
    if (len < 0x2000)
-      return ctrnet_sendto(socket, buf, len, flags, dst_addr);
+   {
+      command->params[6] = IPC_Desc_StaticBuffer(len, 2);
+      command->params[7] = (u32)buf;
+      command->params[8] = IPC_Desc_StaticBuffer(sizeof(*dst_addr), 1);
+      command->params[9] = (u32)dst_addr;
+   }
+   else
+   {
+      command->params[6] = IPC_Desc_StaticBuffer(sizeof(*dst_addr), 1);
+      command->params[7] = (u32)dst_addr;
+      command->params[8] = IPC_Desc_Buffer(len, IPC_BUFFER_R);
+      command->params[9] = (u32)buf;
+   }
 
-   return ctrnet_sendto_other(socket, buf, len, flags, dst_addr);
+   Result res = svcSendSyncRequest(ctrnet.handle);
+
+   if (res)
+      return res;
+
+   if (command->reply.result)
+      return command->reply.result;
+
+   return command->reply.val0; // command->reply.val1?
 }
 
 Result ctrnet_close(Handle socket)
@@ -330,7 +285,6 @@ Result ctrnet_close(Handle socket)
    return command->reply.val0;
 }
 
-
 Result ctrnet_close_sockets(void)
 {
    ipc_command_t* command = IPC_CommandNew(0x21, 0, 2);
@@ -343,7 +297,6 @@ Result ctrnet_close_sockets(void)
 
    return command->reply.result;
 }
-
 
 const char* ctrnet_sa_to_cstr(ctrnet_sockaddr_in_t* addr)
 {
