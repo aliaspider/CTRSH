@@ -6,6 +6,8 @@
 #include "ctr_net.h"
 #include "ctr_debug.h"
 
+#define CTRNET_TRANSFER_SIZE_THRESHOLD 0x100
+
 static struct
 {
    Handle handle;
@@ -200,14 +202,14 @@ Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t*
 
 Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* src_addr)
 {
-   ipc_command_t* command = (len < 0x2000) ? IPC_CommandNew(0x8, 4, 2) : IPC_CommandNew(0x7, 4, 4);
+   ipc_command_t* command = (len < CTRNET_TRANSFER_SIZE_THRESHOLD) ? IPC_CommandNew(0x8, 4, 2) : IPC_CommandNew(0x7, 4, 4);
    command->params[0] = (u32)socket;
    command->params[1] = (u32)len;
    command->params[2] = (u32)flags;
    command->params[3] = (u32)sizeof(*src_addr);
    command->params[4] = IPC_Desc_CurProcessHandle();
 
-   if (len < 0x2000)
+   if (len < CTRNET_TRANSFER_SIZE_THRESHOLD)
    {
       command->static_buffer[0] = (((u32)len) << 14) | 2;
       command->static_buffer[1] = (u32)buf;
@@ -235,14 +237,14 @@ Result ctrnet_recv(Handle socket, void* buf, size_t len, u32 flags, ctrnet_socka
 
 Result ctrnet_send(Handle socket, void* buf, size_t len, u32 flags, ctrnet_sockaddr_in_t* dst_addr)
 {
-   ipc_command_t* command = IPC_CommandNew((len < 0x2000) ? 0xA : 0x9, 4, 6);
+   ipc_command_t* command = IPC_CommandNew((len < CTRNET_TRANSFER_SIZE_THRESHOLD) ? 0xA : 0x9, 4, 6);
    command->params[0] = socket;
    command->params[1] = len;
    command->params[2] = flags;
    command->params[3] = sizeof(*dst_addr);
    command->params[4] = IPC_Desc_CurProcessHandle();
 
-   if (len < 0x2000)
+   if (len < CTRNET_TRANSFER_SIZE_THRESHOLD)
    {
       command->params[6] = IPC_Desc_StaticBuffer(len, 2);
       command->params[7] = (u32)buf;
