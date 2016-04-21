@@ -5,12 +5,14 @@ BUILD_3DSX              = 1
 BUILD_3DS               = 1
 BUILD_CIA               = 1
 LIBCTRU_NO_DEPRECATION  = 1
-
+WCHAR_T_OVERRIDE        = 1
 
 OBJS :=
 OBJS += main.o
 OBJS += ctr_net.o
 OBJS += ctr_error.o
+OBJS += commands.o
+OBJS += ctrsh.o
 
 
 APP_TITLE            = CTRSH
@@ -50,8 +52,14 @@ MAKEROM_ARGS_COMMON = -rsf $(APP_RSF) -exefslogo -elf $(TARGET).elf -icon $(TARG
 INCDIRS := -I$(CTRULIB)/include -I..
 LIBDIRS := -L. -L$(CTRULIB)/lib
 
-
 ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard -marm -mfpu=vfp -mtp=soft
+
+ifeq ($(WCHAR_T_OVERRIDE), 1)
+ARCH     += --short-wchar
+LDFLAGS  += -Wl,--no-wchar-size-warning
+OBJS     += newlib/wcslen.o
+endif
+
 
 CFLAGS	+=	-mword-relocations \
 			-fomit-frame-pointer -ffast-math \
@@ -76,7 +84,8 @@ CFLAGS += -I.
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS   =	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+LDFLAGS +=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
+
 
 CFLAGS   += -std=gnu99 -ffast-math
 

@@ -8,6 +8,10 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <errno.h>
+#include <sys/cdefs.h>
+
+
+#include "../server/common.h"
 
 #define IP2INT(a, b, c, d) (a | (b << 8) | (c << 16) | (d <<24))
 #define CTR_IP    IP2INT(10, 42, 0, 237)
@@ -15,6 +19,12 @@
 
 #define DEBUG_ERROR(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno)); exit(0);}}while(0)
 #define DEBUG_ERROR_stay(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno));}}while(0)
+
+static inline int send_command(int socket, uint32_t command_id)
+{
+   return write(socket, &command_id, 4);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -33,6 +43,9 @@ int main(int argc, char *argv[])
        int sockfd,  n;
        struct sockaddr_in serv_addr = {0};
        DEBUG_ERROR(sockfd = socket(AF_INET, SOCK_STREAM, 0));
+       int sockopt_val = 0x40000;
+       setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
+
        serv_addr.sin_family = AF_INET;
        serv_addr.sin_addr.s_addr = CTR_IP;
        serv_addr.sin_port = htons(CTR_PORT);
@@ -47,14 +60,30 @@ int main(int argc, char *argv[])
        while(ret < 0);
 
 
+       DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DISPLAY_IMAGE));
        printf("sending file\n");
        int i;
-       for (i = 0; i < 20; i++)
+       for (i = 0; i < 1; i++)
        {
           DEBUG_ERROR(write(sockfd, &rgui_file_size, 4));
           DEBUG_ERROR(write(sockfd, rgui_buffer, rgui_file_size));
        }
+
+       DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DIRENT));
+       int dircount;
+       char dirname[0x200];
+       DEBUG_ERROR(read(sockfd, &dircount, 4));
+       for (i = 0; i < dircount; i++)
+       {
+          int len;
+          DEBUG_ERROR(read(sockfd, &len, 4));
+          DEBUG_ERROR(read(sockfd, &dirname, len));
+          printf("%s\n", dirname);
+       }
+       DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_EXIT));
+
        close(sockfd);
+       sleep(1);
     }
 
 //    printf("recieving message :\n");

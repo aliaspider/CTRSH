@@ -1,13 +1,14 @@
 #include <3ds.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <malloc.h>
 #include <arpa/inet.h>
 #include <unistd.h>
-
 #include "ctr_debug.h"
 #include "ctr_net.h"
+#include "commands.h"
+
+u32 __stacksize__ = 0x100000;
 
 void wait_for_input(void)
 {
@@ -47,7 +48,6 @@ int main(int argc, char** argv)
    ctrnet_sockaddr_in_t client_addr = {0};
 
    u32 frames = 0;
-   u8* file_buffer = NULL;
 
    DEBUG_ERROR(ctrnet_init(0x100000));
 
@@ -77,56 +77,11 @@ int main(int argc, char** argv)
 
    printf("Connection from %s\n", ctrnet_sa_to_cstr(&client_addr));
 
-   int total_size = 0;
-   u64 start_tick = svcGetSystemTick();
-   if(client_addr.addr)
-   {
-      int i;
-      for (i = 0; i < 20; i++)
-      {
-         int file_size = 0;
-         while(!file_size)
-            ctrnet_recv(client, &file_size, 4, 0, &client_addr);
-//         DEBUG_VAR(file_size);
+   ctrsh_wait_command(client, &client_addr);
 
-         file_buffer = memalign(0x1000, file_size);
-
-         int recv_size = 0;
-         while(recv_size < file_size)
-         {
-            u32 recvd;
-            recvd = ctrnet_recv(client, file_buffer + recv_size, file_size - recv_size, 0, &client_addr);
-//            DEBUG_VAR(recvd);
-            DEBUG_ERROR(recvd);
-            if(recvd < 0)
-               break;
-            recv_size += recvd;
-
-         }
-//         printf("recieved : %i bytes\n", recv_size);
-         total_size += recv_size;
-      }
-   }
-   u64 end_tick = svcGetSystemTick();
-   printf("total : %i, time: %f\n", total_size, (end_tick - start_tick) / 268123480.0);
-   printf("speed: %.3f KB/s", total_size * 268123480.0 /(1024.0 * (end_tick - start_tick)));
    ctrnet_close(client);
    ctrnet_close(socket);
    ctrnet_exit();
-
-   if (file_buffer)
-   {
-      u16 fb_w, fb_h;
-      u16* top_fb = (u16*)gfxGetFramebuffer(GFX_TOP, GFX_LEFT, &fb_w, &fb_h);
-
-      int x, y;
-      u16* rgui_buffer = (u16*)file_buffer;
-      for (y = 0; y < 320; y++)
-         for (x = 0; x < fb_w; x++)
-            top_fb[x + ((y + 40) * fb_w)] = rgui_buffer[y + (fb_w - x - 1)* 320];
-
-      free(file_buffer);
-   }
 
    printf("\n");
 
