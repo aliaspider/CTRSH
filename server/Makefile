@@ -57,7 +57,7 @@ ARCH     := -march=armv6k -mtune=mpcore -mfloat-abi=hard -marm -mfpu=vfp -mtp=so
 ifeq ($(WCHAR_T_OVERRIDE), 1)
 ARCH     += --short-wchar
 LDFLAGS  += -Wl,--no-wchar-size-warning
-OBJS     += newlib/wcslen.o
+OBJS     += $(patsubst %.c, %.o, $(wildcard newlib/*.c))
 endif
 
 
@@ -108,6 +108,7 @@ endif
 .PHONY: $(BUILD) clean all
 
 all: $(TARGET)
+	echo $(OBJS)
 
 $(TARGET): $(TARGET_3DSX) $(TARGET_3DS) $(TARGET_CIA)
 $(TARGET).3dsx: $(TARGET).elf

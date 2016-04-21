@@ -19,21 +19,18 @@ void ctrsh_command_exit(Handle socket, ctrnet_sockaddr_in_t* addr)
 void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
 {
    int i;
-   FS_Archive sdmc_archive = {0};
-   sdmc_archive.id = ARCHIVE_SDMC;
-   FSUSER_OpenArchive(&sdmc_archive);
    const wchar_t* dirpath_c = L"/";
    FS_Path dirpath;
    dirpath.type = PATH_UTF16;
    dirpath.size = (wcslen(dirpath_c) + 1) * sizeof(*dirpath_c);
    dirpath.data = dirpath_c;
-
    _Static_assert(sizeof(*dirpath_c) == 2, "wchar_t");
+
    Handle dirhandle;
-   DEBUG_ERROR(FSUSER_OpenDirectory(&dirhandle, sdmc_archive, dirpath));
+   DEBUG_ERROR(FSUSER_OpenDirectory(&dirhandle, ctrsh.sdmc, dirpath));
 
    FS_DirectoryEntry dir_entries[256];
-   char dir_names[256][0x106] = {0};
+   char dir_names[256][0x100] = {0};
    u32 dircount = sizeof(dir_entries) / sizeof(*dir_entries);
    DEBUG_ERROR(FSDIR_Read(dirhandle, &dircount, dircount, dir_entries));
 
@@ -41,8 +38,8 @@ void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
 
    for (i = 0; i < dircount; i++)
    {
-      utf16_to_utf8(dir_names[i], dir_entries[i].name, 0x105);
-      DEBUG_STR(dir_names[i]);
+      wcstombs(dir_names[i], dir_entries[i].name, 0xFF);
+      dir_names[i][0xFF] = '\0';
    }
 
 
@@ -54,6 +51,8 @@ void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
       ctrnet_send(socket, &dirname_len, 4, 0, addr);
       ctrnet_send(socket, dir_names[i], dirname_len, 0, addr);
    }
+
+   svcCloseHandle(dirhandle);
 
 }
 
@@ -92,7 +91,7 @@ void ctrsh_command_display_image(Handle socket, ctrnet_sockaddr_in_t* addr)
 
    u64 end_tick = svcGetSystemTick();
    printf("total : %i, time: %f\n", total_size, (end_tick - start_tick) / 268123480.0);
-   printf("speed: %.3f KB/s", total_size * 268123480.0 / (1024.0 * (end_tick - start_tick)));
+   printf("speed: %.3f KB/s\n", total_size * 268123480.0 / (1024.0 * (end_tick - start_tick)));
 
    if (file_buffer)
    {

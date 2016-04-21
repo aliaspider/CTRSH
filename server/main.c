@@ -4,6 +4,8 @@
 #include <malloc.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <wchar.h>
+#include "ctrsh.h"
 #include "ctr_debug.h"
 #include "ctr_net.h"
 #include "commands.h"
@@ -41,6 +43,9 @@ int main(int argc, char** argv)
    consoleInit(GFX_BOTTOM, NULL);
    printf("CTRSH\n");
    printf("Press Start to exit.\n");
+
+   ctrsh.sdmc.id = ARCHIVE_SDMC;
+   FSUSER_OpenArchive(&ctrsh.sdmc);
 
    Handle socket;
    Handle client;
@@ -82,6 +87,8 @@ int main(int argc, char** argv)
    ctrnet_close(client);
    ctrnet_close(socket);
    ctrnet_exit();
+   FSUSER_CloseArchive(&ctrsh.sdmc);
+
 
    printf("\n");
 

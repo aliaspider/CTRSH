@@ -60,11 +60,12 @@ int main(int argc, char *argv[])
        while(ret < 0);
 
 
-       DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DISPLAY_IMAGE));
+
        printf("sending file\n");
        int i;
-       for (i = 0; i < 1; i++)
+       for (i = 0; i < 10; i++)
        {
+          DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DISPLAY_IMAGE));
           DEBUG_ERROR(write(sockfd, &rgui_file_size, 4));
           DEBUG_ERROR(write(sockfd, rgui_buffer, rgui_file_size));
        }
