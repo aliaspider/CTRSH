@@ -56,6 +56,11 @@ int main(int argc, char** argv)
    host_addr.port = htons(5000);
    DEBUG_ERROR(ctrnet_gethostid(&host_addr.addr));
    DEBUG_ERROR(ctrnet_socket(&socket));
+
+   u32 sockopt_val = 0xFFFF;
+   ctrnet_setsockopt(socket, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
+   ctrnet_setsockopt(socket, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
+
    DEBUG_ERROR(ctrnet_bind(socket, &host_addr));
    DEBUG_ERROR(ctrnet_listen(socket, 1));
 
@@ -77,7 +82,7 @@ int main(int argc, char** argv)
    if(client_addr.addr)
    {
       int i;
-      for (i = 0; i < 5; i++)
+      for (i = 0; i < 20; i++)
       {
          int file_size = 0;
          while(!file_size)
@@ -85,7 +90,6 @@ int main(int argc, char** argv)
 //         DEBUG_VAR(file_size);
 
          file_buffer = memalign(0x1000, file_size);
-
 
          int recv_size = 0;
          while(recv_size < file_size)
@@ -105,7 +109,7 @@ int main(int argc, char** argv)
    }
    u64 end_tick = svcGetSystemTick();
    printf("total : %i, time: %f\n", total_size, (end_tick - start_tick) / 268123480.0);
-   printf("speed: %f.0 B/s", total_size * 268123480.0 / (end_tick - start_tick));
+   printf("speed: %.3f KB/s", total_size * 268123480.0 /(1024.0 * (end_tick - start_tick)));
    ctrnet_close(client);
    ctrnet_close(socket);
    ctrnet_exit();

@@ -33,6 +33,8 @@ Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t*
 Result ctrnet_recv(Handle socket, void *buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t *src_addr);
 Result ctrnet_send(Handle socket, void *buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t *dst_addr);
 Result ctrnet_close(Handle socket);
+Result ctrnet_getsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32* optlen);
+Result ctrnet_setsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32 optlen);
 Result ctrnet_close_sockets(void);
 
 const char* ctrnet_sa_to_cstr(ctrnet_sockaddr_in_t* addr);

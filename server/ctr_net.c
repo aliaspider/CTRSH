@@ -6,7 +6,7 @@
 #include "ctr_net.h"
 #include "ctr_debug.h"
 
-#define CTRNET_TRANSFER_SIZE_THRESHOLD 0x100
+#define CTRNET_TRANSFER_SIZE_THRESHOLD 0x2000
 
 static struct
 {
@@ -286,6 +286,54 @@ Result ctrnet_close(Handle socket)
 
    return command->reply.val0;
 }
+
+Result ctrnet_getsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32* optlen)
+{
+   ipc_command_t* command = IPC_CommandNew(0x11, 4, 2);
+   command->params[0] = socket;
+   command->params[1] = level;
+   command->params[2] = optname;
+   command->params[3] = *optlen;
+   command->params[4] = IPC_Desc_CurProcessHandle();
+
+   command->static_buffer[0] = IPC_Desc_StaticBuffer(*optlen, 0);
+   command->static_buffer[1] = (u32)optval;
+
+   Result res = svcSendSyncRequest(ctrnet.handle);
+
+   if (res)
+      return res;
+
+   if (command->reply.result)
+      return command->reply.result;
+
+   *optlen = command->reply.val1;
+
+   return command->reply.val0;
+}
+
+Result ctrnet_setsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32 optlen)
+{
+   ipc_command_t* command = IPC_CommandNew(0x12, 4, 4);
+   command->params[0] = socket;
+   command->params[1] = level;
+   command->params[2] = optname;
+   command->params[3] = optlen;
+   command->params[4] = IPC_Desc_CurProcessHandle();
+   command->params[6] = IPC_Desc_StaticBuffer(optlen, 9);
+   command->params[7] = (u32)optval;
+
+   Result res = svcSendSyncRequest(ctrnet.handle);
+
+   if (res)
+      return res;
+
+   if (command->reply.result)
+      return command->reply.result;
+
+   return command->reply.val0;
+}
+
 
 Result ctrnet_close_sockets(void)
 {

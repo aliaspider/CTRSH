@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 
        printf("sending file\n");
        int i;
-       for (i = 0; i < 5; i++)
+       for (i = 0; i < 20; i++)
        {
           DEBUG_ERROR(write(sockfd, &rgui_file_size, 4));
           DEBUG_ERROR(write(sockfd, rgui_buffer, rgui_file_size));
