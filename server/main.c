@@ -90,21 +90,21 @@ int main(int argc, char** argv)
    FSUSER_CloseArchive(&ctrsh.sdmc);
 
 
-   printf("\n");
+//   printf("\n");
 
-   while (aptMainLoop())
-   {
-      hidScanInput();
-      u32 kDown = hidKeysDown();
+//   while (aptMainLoop())
+//   {
+//      hidScanInput();
+//      u32 kDown = hidKeysDown();
 
-      if (kDown & KEY_START)
-         break;
+//      if (kDown & KEY_START)
+//         break;
 
-      printf("frames : %u\r", (unsigned)frames++);
-      gfxFlushBuffers();
-      gspWaitForVBlank();
-      fflush(stdout);
-   }
+//      printf("frames : %u\r", (unsigned)frames++);
+//      gfxFlushBuffers();
+//      gspWaitForVBlank();
+//      fflush(stdout);
+//   }
 
 
    gfxExit();

@@ -11,6 +11,7 @@
 #include <sys/cdefs.h>
 #include <limits.h>
 #include <readline/readline.h>
+#include <readline/history.h>
 #include <stdarg.h>
 #include <stdbool.h>
 
@@ -38,6 +39,7 @@ struct
 {
    char history_file[PATH_MAX];
    bool running;
+   bool server_running;
 } ctrsh;
 
 
@@ -86,15 +88,24 @@ void command_exit(int sockfd, const char* args)
 {
    printf("executing exit with argument %s\n", args);
    DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_EXIT));
-   ctrsh.running = false;
+   ctrsh.server_running = false;
 }
 
+void command_quit(int sockfd, const char* args)
+{
+   printf("executing exit with argument %s\n", args);
+   DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_EXIT));
+   ctrsh.server_running = false;
+   ctrsh.running = false;
+
+}
 
 command_t ctrsh_commands[] =
 {
    {"send", command_send},
    {"ls", command_ls},
    {"exit", command_exit},
+   {"quit", command_quit},
    {NULL}
 };
 
@@ -148,8 +159,6 @@ static char** ctrsh_completion_function(const char* str, int start, int end)
 
 int main(int argc, char* argv[])
 {
-   ctrsh.running = true;
-
    printf("loading file\n");
    FILE* rgui_fp = fopen("./rgui.dat", "rb");
    DEBUG_ERROR(rgui_fp);
@@ -168,6 +177,10 @@ int main(int argc, char* argv[])
    else
       strncpy(ctrsh.history_file, HISTORY_FILE, sizeof(ctrsh.history_file));
 
+   read_history(ctrsh.history_file);
+   history_set_pos(history_length);
+
+
    rl_attempted_completion_function = ctrsh_completion_function;
 
    //    rl_callback_handler_install("", cli_handler);
@@ -175,8 +188,10 @@ int main(int argc, char* argv[])
    //    rl_completer_word_break_characters = "\t\n ";
 
 
-   while (1)
+   ctrsh.running = true;
+   while (ctrsh.running)
    {
+      ctrsh.server_running = true;
       int sockfd,  n;
       struct sockaddr_in serv_addr = {0};
       DEBUG_ERROR(sockfd = socket(AF_INET, SOCK_STREAM, 0));
@@ -198,9 +213,11 @@ int main(int argc, char* argv[])
       }
       while (ret < 0);
 
-      while (ctrsh.running)
+      while (ctrsh.server_running)
       {
          char* line = readline("test:/> ");
+         if(line && *line)
+            add_history(line);
          printf("executing command : %s\n", line);
          command_t* cmd = ctrsh_commands;
 
@@ -223,6 +240,7 @@ int main(int argc, char* argv[])
    }
 
    free(rgui.buffer);
+   write_history(ctrsh.history_file);
 
    return 0;
 }
