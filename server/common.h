@@ -17,7 +17,7 @@ typedef enum
 
 typedef struct __attribute((packed))
 {
-   uint32_t next;
+   uint32_t entry_size;
    uint32_t attributes;
    uint64_t size;
    uint8_t name [];

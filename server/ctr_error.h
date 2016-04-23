@@ -51,7 +51,7 @@ static inline void dump_result_value(Result val)
 {
    if(-val < 0x80)
    {
-      printf("%i(%i) : %s\n", val, _net_convert_error(val), strerror(-_net_convert_error(val)));
+      printf("%li(%li) : %s\n", val, _net_convert_error(val), strerror(-_net_convert_error(val)));
       return;
    }
 

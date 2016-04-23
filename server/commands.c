@@ -54,13 +54,16 @@ void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
          if(ret == (size_t)-1)
             continue;
          dst->name[ret] = '\0';
-         dst->next = 0x10 + ret + 1;
-         dirent_buffer_offset += dst->next;
+         dst->entry_size = 0x10 + ret + 1;
+         dirent_buffer_offset += dst->entry_size;
 
          dirent_buffer_offset = &dst->name[ret] + 1 - dirent_buffer;
-         dst->next = &dst->name[ret] + 1 - (u8*)dst;
+         dst->entry_size = &dst->name[ret] + 1 - (u8*)dst;
       }
    }
+   ((ctrsh_dirent*)(dirent_buffer + dirent_buffer_offset))->entry_size = 0;
+   dirent_buffer_offset += 4;
+
    DEBUG_ERROR(ctrnet_send(socket, &dirent_buffer_offset, 4, 0, addr));
    DEBUG_ERROR(ctrnet_send(socket, dirent_buffer, dirent_buffer_offset, 0, addr));
    DEBUG_ERROR(svcCloseHandle(dirhandle));

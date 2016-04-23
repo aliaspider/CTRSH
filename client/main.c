@@ -27,7 +27,14 @@
 #define HISTORY_FILE    "ctrsh.hist"
 
 
-
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
 
 typedef void(*command_fn_t)(int sockfd, const char*);
 typedef struct
@@ -50,7 +57,7 @@ struct
 {
    void* buffer;
    size_t size;
-}rgui;
+} rgui;
 
 static inline int send_command(int socket, uint32_t command_id)
 {
@@ -75,29 +82,82 @@ void command_ls(int sockfd, const char* args)
    DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DIRENT));
    uint32_t buffer_size;
    DEBUG_ERROR(read(sockfd, &buffer_size, 4));
-   DEBUG_VAR(buffer_size);
-   if(!buffer_size)
+
+   if (!buffer_size)
       return;
+
    uint8_t* buffer = malloc(buffer_size);
    ssize_t bytes_read = 0;
-   while(bytes_read < buffer_size)
+
+   while (bytes_read < buffer_size)
    {
       ssize_t ret = read(sockfd, buffer + bytes_read, buffer_size - bytes_read);
       DEBUG_ERROR(ret);
       bytes_read += ret;
-      DEBUG_VAR(bytes_read);
    }
 
-   ctrsh_dirent* dir = (ctrsh_dirent*)buffer;
-   while(true)
+   ctrsh_dirent* dir;
+#if 0
+   int term_w;
+   rl_get_screen_size(term_w, NULL);
+
+   if (!term_w)
+      term_w = 80;
+
+   int columns = term_w / 8;
+
+   dir = (ctrsh_dirent*)buffer;
+   int entries = 1;
+
+   while (dir->next)
    {
-      printf("%s\n", dir->name);
-      if(dir->next > buffer_size)
-         break;
-      if(!dir->next)
-         break;
       dir = (ctrsh_dirent*)((uintptr_t)dir + dir->next);
+      entries++;
    }
+
+   dir = (ctrsh_dirent*)buffer;
+   int entries_per_column = (entries + columns - 1) / columns;
+
+   while (dir->next)
+   {
+      int len = dir->next - 0x10;
+      dir = (ctrsh_dirent*)((uintptr_t)dir + dir->next);
+
+      if (!dir->next)
+         len = strlen(dir->name);
+
+      if (len > (term_w / columns))
+      {
+         columns --;
+         dir = (ctrsh_dirent*)buffer;
+
+         if (!columns)
+            columns = 1;
+
+         break;
+      }
+   }
+
+#else
+
+   dir = (ctrsh_dirent*)buffer;
+
+   while (dir->entry_size)
+   {
+      if (dir->attributes & 0xFF)
+         printf(" ----------  ##  " KGRN "%s \n" KNRM, dir->name);
+
+      else
+         printf(" %10lli  ##  %s \n", dir->size, dir->name);
+
+      dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
+   }
+
+#endif
+
+
+
+
    free(buffer);
 
 }
@@ -186,7 +246,6 @@ int main(int argc, char* argv[])
    fread(rgui.buffer, 1, rgui.size, rgui_fp);
    fclose(rgui_fp);
 
-   //    *(int*)0 = 0;
    const char* home_path = getenv("HOME");
 
    if (home_path)
@@ -204,6 +263,7 @@ int main(int argc, char* argv[])
    //    rl_basic_word_break_characters = "\t\n ";
    //    rl_completer_word_break_characters = "\t\n ";
 #if 0
+
    while (true)
    {
       int sockfd,  n;
@@ -229,6 +289,7 @@ int main(int argc, char* argv[])
       while (ret < 0);
 
       int i;
+
       for (i = 0; i < 20; i++)
       {
          DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DISPLAY_IMAGE));
@@ -237,14 +298,16 @@ int main(int argc, char* argv[])
       }
 
 
-//      sleep(3);
+      //      sleep(3);
       DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_EXIT));
 
       close(sockfd);
       sleep(1);
    }
+
 #else
    ctrsh.running = true;
+
    while (ctrsh.running)
    {
       ctrsh.server_running = true;
@@ -273,8 +336,10 @@ int main(int argc, char* argv[])
       while (ctrsh.server_running)
       {
          char* line = readline("test:/> ");
-         if(line && *line)
+
+         if (line && *line)
             add_history(line);
+
          printf("executing command : %s\n", line);
          command_t* cmd = ctrsh_commands;
 
@@ -295,6 +360,7 @@ int main(int argc, char* argv[])
       close(sockfd);
       sleep(1);
    }
+
 #endif
    free(rgui.buffer);
    write_history(ctrsh.history_file);
