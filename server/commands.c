@@ -54,8 +54,6 @@ void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
          if(ret == (size_t)-1)
             continue;
          dst->name[ret] = '\0';
-         dst->entry_size = 0x10 + ret + 1;
-         dirent_buffer_offset += dst->entry_size;
 
          dirent_buffer_offset = &dst->name[ret] + 1 - dirent_buffer;
          dst->entry_size = &dst->name[ret] + 1 - (u8*)dst;
