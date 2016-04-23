@@ -18,7 +18,6 @@ void ctrsh_command_exit(Handle socket, ctrnet_sockaddr_in_t* addr)
 
 void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
 {
-   int i;
    const wchar_t* dirpath_c = L"/";
    FS_Path dirpath;
    dirpath.type = PATH_UTF16;
@@ -28,32 +27,44 @@ void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
 
    Handle dirhandle;
    DEBUG_ERROR(FSUSER_OpenDirectory(&dirhandle, ctrsh.sdmc, dirpath));
-
-   FS_DirectoryEntry dir_entries[256];
-   char dir_names[256][0x100] = {0};
-   u32 dircount = sizeof(dir_entries) / sizeof(*dir_entries);
-   DEBUG_ERROR(FSDIR_Read(dirhandle, &dircount, dircount, dir_entries));
-
-   DEBUG_VAR(dircount);
-
-   for (i = 0; i < dircount; i++)
+   int i;
+   u32 dirent_buffer_size = 0x2000;
+   u8* dirent_buffer = malloc(dirent_buffer_size);
+   u32 dirent_buffer_offset = 0;
+   u32 dir_count = 1;
+   while(true)
    {
-      wcstombs(dir_names[i], dir_entries[i].name, 0xFF);
-      dir_names[i][0xFF] = '\0';
+      FS_DirectoryEntry dir_entries[0x80];
+      dir_count = sizeof(dir_entries) / sizeof(*dir_entries);
+      DEBUG_ERROR(FSDIR_Read(dirhandle, &dir_count, dir_count, dir_entries));
+      if(!dir_count)
+         break;
+      for(i = 0; i < dir_count; i++)
+      {
+         if(dirent_buffer_offset + 0x200 > dirent_buffer_size)
+         {
+            dirent_buffer_size <<= 1;
+            dirent_buffer = realloc(dirent_buffer, dirent_buffer_size);
+            DEBUG_VAR(dirent_buffer_size);
+         }
+         ctrsh_dirent* dst = (ctrsh_dirent*)(dirent_buffer + dirent_buffer_offset);
+         dst->attributes = dir_entries[i].attributes;
+         dst->size = dir_entries[i].fileSize;
+         size_t ret = wcstombs((char*)dst->name, dir_entries[i].name, 0x100);
+         if(ret == (size_t)-1)
+            continue;
+         dst->name[ret] = '\0';
+         dst->next = 0x10 + ret + 1;
+         dirent_buffer_offset += dst->next;
+
+         dirent_buffer_offset = &dst->name[ret] + 1 - dirent_buffer;
+         dst->next = &dst->name[ret] + 1 - (u8*)dst;
+      }
    }
-
-
-   ctrnet_send(socket, &dircount, sizeof(dircount), 0, addr);
-
-   for (i = 0; i  < dircount; i++)
-   {
-      u32 dirname_len = strlen(dir_names[i]) + 1;
-      ctrnet_send(socket, &dirname_len, 4, 0, addr);
-      ctrnet_send(socket, dir_names[i], dirname_len, 0, addr);
-   }
-
-   svcCloseHandle(dirhandle);
-
+   DEBUG_ERROR(ctrnet_send(socket, &dirent_buffer_offset, 4, 0, addr));
+   DEBUG_ERROR(ctrnet_send(socket, dirent_buffer, dirent_buffer_offset, 0, addr));
+   DEBUG_ERROR(svcCloseHandle(dirhandle));
+   free(dirent_buffer);
 }
 
 void ctrsh_command_display_image(Handle socket, ctrnet_sockaddr_in_t* addr)
@@ -105,6 +116,7 @@ void ctrsh_command_display_image(Handle socket, ctrnet_sockaddr_in_t* addr)
             top_fb[x + ((y + 40) * fb_w)] = rgui_buffer[y + (fb_w - x - 1)* 320];
 
       free(file_buffer);
+      gfxFlushBuffers();
    }
 
 
@@ -119,7 +131,11 @@ void ctrsh_wait_command(Handle socket, ctrnet_sockaddr_in_t* addr)
       if((command_id == CTRSH_COMMAND_INVALID) || (command_id >= CTRSH_COMMAND_ID_MAX))
          continue;
 
+      u64 start_tick = svcGetSystemTick();
       ctrsh.commands[command_id].fn(socket, addr);
+      u64 end_tick = svcGetSystemTick();
+      printf("<%s> executed in %.3fms\n", ctrsh.commands[command_id].name, (end_tick - start_tick) / 268123.480);
+
       if(command_id == CTRSH_COMMAND_EXIT)
          break;
    }

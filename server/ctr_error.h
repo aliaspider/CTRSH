@@ -3,6 +3,7 @@
 
 #include <3ds/types.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,13 +44,23 @@ typedef union
    Result val;
 } ctr_result_value;
 
+
+s32 _net_convert_error(s32 sock_retval);
+
 static inline void dump_result_value(Result val)
 {
+   if(-val < 0x80)
+   {
+      printf("%i(%i) : %s\n", val, _net_convert_error(val), strerror(-_net_convert_error(val)));
+      return;
+   }
+
    ctr_result_value res;
    res.val = val;
    printf("0x%08X :\n", (unsigned int)val);
-   if(val == -1)
-      return;
+//   if(val == -1)
+//      return;
+
    printf("%-4u: %s\n", res.description, ctr_error_to_str(error_description_str, res.description));
    printf("%-4u: %s\n", res.module, ctr_error_to_str(error_module_str, res.module));
    printf("%-4u: %s\n", res.summary, ctr_error_to_str(error_summary_str, res.summary));

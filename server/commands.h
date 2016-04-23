@@ -9,6 +9,7 @@ typedef void (*ctrsh_command_fn_t)(Handle socket, ctrnet_sockaddr_in_t* addr);
 
 typedef struct
 {
+   const char* name;
    ctrsh_command_fn_t fn;
 }ctrsh_command_t;
 

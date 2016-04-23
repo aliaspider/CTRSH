@@ -52,7 +52,7 @@ int main(int argc, char** argv)
    ctrnet_sockaddr_in_t host_addr = {0};
    ctrnet_sockaddr_in_t client_addr = {0};
 
-   u32 frames = 0;
+//   u32 frames = 0;
 
    DEBUG_ERROR(ctrnet_init(0x100000));
 

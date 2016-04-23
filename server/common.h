@@ -1,6 +1,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <stdint.h>
+#include <sys/cdefs.h>
 
 typedef enum
 {
@@ -11,5 +13,14 @@ typedef enum
 
    CTRSH_COMMAND_ID_MAX
 }ctrsh_command_id_t;
+
+
+typedef struct __attribute((packed))
+{
+   uint32_t next;
+   uint32_t attributes;
+   uint64_t size;
+   uint8_t name [];
+}ctrsh_dirent;
 
 #endif // COMMON_H

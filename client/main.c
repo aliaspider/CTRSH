@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
@@ -19,6 +20,7 @@
 #define IP2INT(a, b, c, d) (a | (b << 8) | (c << 16) | (d <<24))
 #define DEBUG_ERROR(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno)); exit(0);}}while(0)
 #define DEBUG_ERROR_stay(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno));}}while(0)
+#define DEBUG_VAR(X) printf( #X" : 0x%08lX\n", (uint32_t)(X))
 
 #define CTR_IP          IP2INT(10, 42, 0, 237)
 #define CTR_PORT        5000
@@ -71,17 +73,32 @@ void command_ls(int sockfd, const char* args)
    int i;
    printf("executing ls with argument %s\n", args);
    DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DIRENT));
-   int dircount;
-   char dirname[0x200];
-   DEBUG_ERROR(read(sockfd, &dircount, 4));
-
-   for (i = 0; i < dircount; i++)
+   uint32_t buffer_size;
+   DEBUG_ERROR(read(sockfd, &buffer_size, 4));
+   DEBUG_VAR(buffer_size);
+   if(!buffer_size)
+      return;
+   uint8_t* buffer = malloc(buffer_size);
+   ssize_t bytes_read = 0;
+   while(bytes_read < buffer_size)
    {
-      int len;
-      DEBUG_ERROR(read(sockfd, &len, 4));
-      DEBUG_ERROR(read(sockfd, &dirname, len));
-      printf("%s\n", dirname);
+      ssize_t ret = read(sockfd, buffer + bytes_read, buffer_size - bytes_read);
+      DEBUG_ERROR(ret);
+      bytes_read += ret;
+      DEBUG_VAR(bytes_read);
    }
+
+   ctrsh_dirent* dir = (ctrsh_dirent*)buffer;
+   while(true)
+   {
+      printf("%s\n", dir->name);
+      if(dir->next > buffer_size)
+         break;
+      if(!dir->next)
+         break;
+      dir = (ctrsh_dirent*)((uintptr_t)dir + dir->next);
+   }
+   free(buffer);
 
 }
 void command_exit(int sockfd, const char* args)
@@ -186,8 +203,47 @@ int main(int argc, char* argv[])
    //    rl_callback_handler_install("", cli_handler);
    //    rl_basic_word_break_characters = "\t\n ";
    //    rl_completer_word_break_characters = "\t\n ";
+#if 0
+   while (true)
+   {
+      int sockfd,  n;
+      struct sockaddr_in serv_addr = {0};
+      DEBUG_ERROR(sockfd = socket(AF_INET, SOCK_STREAM, 0));
+      int sockopt_val = 0x40000;
+      setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
+      setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
+
+      serv_addr.sin_family = AF_INET;
+      serv_addr.sin_addr.s_addr = CTR_IP;
+      serv_addr.sin_port = htons(CTR_PORT);
+      int ret;
+
+      do
+      {
+         ret = connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+
+         //          DEBUG_ERROR_stay(ret);
+         if (ret < 0)
+            usleep(10000);
+      }
+      while (ret < 0);
+
+      int i;
+      for (i = 0; i < 20; i++)
+      {
+         DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DISPLAY_IMAGE));
+         DEBUG_ERROR(write(sockfd, &rgui.size, 4));
+         DEBUG_ERROR(write(sockfd, rgui.buffer, rgui.size));
+      }
 
 
+//      sleep(3);
+      DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_EXIT));
+
+      close(sockfd);
+      sleep(1);
+   }
+#else
    ctrsh.running = true;
    while (ctrsh.running)
    {
@@ -197,6 +253,7 @@ int main(int argc, char* argv[])
       DEBUG_ERROR(sockfd = socket(AF_INET, SOCK_STREAM, 0));
       int sockopt_val = 0x40000;
       setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
+      setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
 
       serv_addr.sin_family = AF_INET;
       serv_addr.sin_addr.s_addr = CTR_IP;
@@ -238,7 +295,7 @@ int main(int argc, char* argv[])
       close(sockfd);
       sleep(1);
    }
-
+#endif
    free(rgui.buffer);
    write_history(ctrsh.history_file);
 
