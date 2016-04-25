@@ -93,4 +93,39 @@ static inline void IPCCMD_Set_StaticBuffer(ipc_command_t* cmd, u32 buffer_id, vo
    cmd->static_buffer[(buffer_id << 1) + 1] = (u32)buffer;
 }
 
+
+__attribute((always_inline))
+static inline Result IPCCMD_Send_Wait_Reply0(ipc_command_t* cmd, Handle service, u32* reply0, u32* reply1)
+{
+   Result res = svcSendSyncRequest(service);
+
+   if (res)
+      return res;
+
+   if(reply0)
+      *reply0 = cmd->reply.val0;
+   if(reply1)
+      *reply1 = cmd->reply.val1;
+
+   return cmd->reply.result;
+}
+
+__attribute((always_inline))
+static inline Result IPCCMD_Send_Wait_Reply1(ipc_command_t* cmd, Handle service, u32* reply)
+{
+   Result res = svcSendSyncRequest(service);
+
+   if (res)
+      return res;
+
+   if(cmd->reply.result)
+      return cmd->reply.result;
+
+   if(reply)
+      *reply = cmd->reply.val1;
+
+   return cmd->reply.val0;
+}
+
+
 #endif // CTR_IPC_H
