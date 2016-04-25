@@ -17,17 +17,6 @@ static struct
    u32 sharedmem_size;
 } ctrnet;
 
-__attribute((noinline))
-static Result ctrnet_sharedmem_init(Handle memhandle, u32 memsize)
-{
-   ipc_command_t* command = IPCCMD_New(0x1);
-   IPCCMD_Add_Param(command, memsize);
-   IPCCMD_Add_Desc_CurProcessHandle(command);
-   IPCCMD_Add_Desc_SharedHandles(command, 1, &memhandle);
-
-   return IPCCMD_Send_Wait_Reply(command, ctrnet.handle, NULL, NULL);
-}
-
 Result ctrnet_init(u32 sharedmem_size)
 {
    Result ret;
@@ -38,8 +27,13 @@ Result ctrnet_init(u32 sharedmem_size)
    {
       if (!(ret = srvGetServiceHandle(&ctrnet.handle, "soc:U")))
       {
-         if (!(ret = ctrnet_sharedmem_init(ctrnet.sharedmem_handle, ctrnet.sharedmem_size)))
-            return 0;
+         ipc_command_t* command = IPCCMD_New(0x1);
+         IPCCMD_Add_Param(command, ctrnet.sharedmem_size);
+         IPCCMD_Add_Desc_CurProcessHandle(command);
+         IPCCMD_Add_Desc_SharedHandles(command, 1, &ctrnet.sharedmem_handle);
+
+         if (!(ret = IPCCMD_Send_Wait_Reply(command, ctrnet.handle, NULL, NULL)))
+             return 0;
 
          svcCloseHandle(ctrnet.handle);
       }
@@ -50,16 +44,11 @@ Result ctrnet_init(u32 sharedmem_size)
    return ret;
 }
 
-static Result ctrnet_sharedmem_deinit(void)
-{
-   return IPCCMD_Send_Wait_Reply(IPCCMD_New(0x19), ctrnet.handle, NULL, NULL);
-}
-
 Result ctrnet_exit(void)
 {
    Result ret;
 
-   if ((ret = ctrnet_sharedmem_deinit()))
+   if ((ret = IPCCMD_Send_Wait_Reply(IPCCMD_New(0x19), ctrnet.handle, NULL, NULL)))
       return ret;
 
    if ((ret = svcCloseHandle(ctrnet.handle)))
