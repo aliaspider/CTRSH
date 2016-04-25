@@ -203,7 +203,7 @@ void ctrsh_command_display_image(Handle socket, ctrnet_sockaddr_in_t* addr)
 void ctrsh_command_put(Handle socket, ctrnet_sockaddr_in_t* addr)
 {
    printf("recieving file ...\n");
-   DEBUG_ERROR(ctrsh_recv_to_file(socket, NULL, addr));
+   DEBUG_ERROR(ctrsh_recv_to_file(socket, 0, addr));
 }
 
 

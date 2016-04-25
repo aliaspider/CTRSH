@@ -95,23 +95,23 @@ static inline void IPCCMD_Set_StaticBuffer(ipc_command_t* cmd, u32 buffer_id, vo
 
 
 __attribute((always_inline))
-static inline Result IPCCMD_Send_Wait_Reply0(ipc_command_t* cmd, Handle service, u32* reply0, u32* reply1)
+static inline Result IPCCMD_Send_Wait_Reply(ipc_command_t* cmd, Handle service, u32* rval0, u32* rval1)
 {
    Result res = svcSendSyncRequest(service);
 
    if (res)
       return res;
 
-   if(reply0)
-      *reply0 = cmd->reply.val0;
-   if(reply1)
-      *reply1 = cmd->reply.val1;
+   if(rval0)
+      *rval0 = cmd->reply.val0;
+   if(rval1)
+      *rval1 = cmd->reply.val1;
 
    return cmd->reply.result;
 }
 
 __attribute((always_inline))
-static inline Result IPCCMD_Send_Wait_Reply1(ipc_command_t* cmd, Handle service, u32* reply)
+static inline Result IPCCMD_Send_Wait_POSIX_Reply(ipc_command_t* cmd, Handle service, u32* rval)
 {
    Result res = svcSendSyncRequest(service);
 
@@ -121,8 +121,8 @@ static inline Result IPCCMD_Send_Wait_Reply1(ipc_command_t* cmd, Handle service,
    if(cmd->reply.result)
       return cmd->reply.result;
 
-   if(reply)
-      *reply = cmd->reply.val1;
+   if(rval)
+      *rval = cmd->reply.val1;
 
    return cmd->reply.val0;
 }

@@ -17,7 +17,7 @@ static Result ctrnet_sharedmem_init(Handle memhandle, u32 memsize)
    IPCCMD_Add_Desc_CurProcessHandle(command);
    IPCCMD_Add_Desc_SharedHandles(command, 1, &memhandle);
 
-   return IPCCMD_Send_Wait_Reply0(command, ctrnet.handle, NULL, NULL);
+   return IPCCMD_Send_Wait_Reply(command, ctrnet.handle, NULL, NULL);
 }
 
 Result ctrnet_init(u32 sharedmem_size)
@@ -44,7 +44,7 @@ Result ctrnet_init(u32 sharedmem_size)
 
 static Result ctrnet_sharedmem_deinit(void)
 {
-   return IPCCMD_Send_Wait_Reply0(IPCCMD_New(0x19), ctrnet.handle, NULL, NULL);
+   return IPCCMD_Send_Wait_Reply(IPCCMD_New(0x19), ctrnet.handle, NULL, NULL);
 }
 
 Result ctrnet_exit(void)
@@ -65,7 +65,7 @@ Result ctrnet_exit(void)
 
 Result ctrnet_gethostid(u32* ip_out)
 {
-   return IPCCMD_Send_Wait_Reply0(IPCCMD_New(0x16), ctrnet.handle, ip_out, NULL);
+   return IPCCMD_Send_Wait_Reply(IPCCMD_New(0x16), ctrnet.handle, ip_out, NULL);
 }
 
 Result ctrnet_socket(Handle* socket_out)
@@ -77,7 +77,7 @@ Result ctrnet_socket(Handle* socket_out)
    IPCCMD_Add_Param(command, 0);
    IPCCMD_Add_Desc_CurProcessHandle(command);
 
-   return IPCCMD_Send_Wait_Reply0(command, ctrnet.handle, socket_out, NULL);
+   return IPCCMD_Send_Wait_Reply(command, ctrnet.handle, socket_out, NULL);
 }
 
 Result ctrnet_bind(Handle socket, ctrnet_sockaddr_in_t* addr)
@@ -89,7 +89,7 @@ Result ctrnet_bind(Handle socket, ctrnet_sockaddr_in_t* addr)
    IPCCMD_Add_Desc_CurProcessHandle(command);
    IPCCMD_Add_Desc_StaticBuffer(command, 0, addr, sizeof(*addr));
 
-   return IPCCMD_Send_Wait_Reply1(command, ctrnet.handle, NULL);
+   return IPCCMD_Send_Wait_POSIX_Reply(command, ctrnet.handle, NULL);
 }
 
 Result ctrnet_listen(Handle socket, int max_connections)
@@ -99,7 +99,7 @@ Result ctrnet_listen(Handle socket, int max_connections)
    IPCCMD_Add_Param(command, max_connections);
    IPCCMD_Add_Desc_CurProcessHandle(command);
 
-   return IPCCMD_Send_Wait_Reply1(command, ctrnet.handle, NULL);
+   return IPCCMD_Send_Wait_POSIX_Reply(command, ctrnet.handle, NULL);
 }
 
 Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t* client_addr)
@@ -110,7 +110,7 @@ Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t*
    IPCCMD_Add_Desc_CurProcessHandle(command);
    IPCCMD_Set_StaticBuffer(command, 0, client_addr, sizeof(*client_addr));
 
-   return IPCCMD_Send_Wait_Reply0(command, ctrnet.handle, client_handle, NULL);
+   return IPCCMD_Send_Wait_Reply(command, ctrnet.handle, client_handle, NULL);
 }
 
 Result ctrnet_recv(Handle socket, void* buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t* src_addr)
@@ -133,7 +133,7 @@ Result ctrnet_recv(Handle socket, void* buf, size_t len, ctrnet_transfer_flags f
       IPCCMD_Set_StaticBuffer(command, 0, src_addr, sizeof(*src_addr));
    }
 
-   return IPCCMD_Send_Wait_Reply1(command, ctrnet.handle, NULL);
+   return IPCCMD_Send_Wait_POSIX_Reply(command, ctrnet.handle, NULL);
 }
 
 Result ctrnet_send(Handle socket, void* buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t* dst_addr)
@@ -156,7 +156,7 @@ Result ctrnet_send(Handle socket, void* buf, size_t len, ctrnet_transfer_flags f
       IPCCMD_Add_Desc_Buffer(command, buf, len, IPC_BUFFER_R);
    }
 
-   return IPCCMD_Send_Wait_Reply1(command, ctrnet.handle, NULL);
+   return IPCCMD_Send_Wait_POSIX_Reply(command, ctrnet.handle, NULL);
 }
 
 Result ctrnet_close(Handle socket)
@@ -165,7 +165,7 @@ Result ctrnet_close(Handle socket)
    IPCCMD_Add_Param(command, socket);
    IPCCMD_Add_Desc_CurProcessHandle(command);
 
-   return IPCCMD_Send_Wait_Reply1(command, ctrnet.handle, NULL);
+   return IPCCMD_Send_Wait_POSIX_Reply(command, ctrnet.handle, NULL);
 }
 
 Result ctrnet_getsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32* optlen)
@@ -178,7 +178,7 @@ Result ctrnet_getsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32
    IPCCMD_Add_Desc_CurProcessHandle(command);
    IPCCMD_Set_StaticBuffer(command, 0, optval, *optlen);
 
-   return IPCCMD_Send_Wait_Reply1(command, ctrnet.handle, optlen);
+   return IPCCMD_Send_Wait_POSIX_Reply(command, ctrnet.handle, optlen);
 }
 
 Result ctrnet_setsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32 optlen)
@@ -191,7 +191,7 @@ Result ctrnet_setsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32
    IPCCMD_Add_Desc_CurProcessHandle(command);
    IPCCMD_Add_Desc_StaticBuffer(command, 9, optval, optlen);
 
-   return IPCCMD_Send_Wait_Reply1(command, ctrnet.handle, NULL);
+   return IPCCMD_Send_Wait_POSIX_Reply(command, ctrnet.handle, NULL);
 }
 
 
@@ -200,7 +200,7 @@ Result ctrnet_close_sockets(void)
    ipc_command_t* command = IPCCMD_New(0x21);
    IPCCMD_Add_Desc_CurProcessHandle(command);
 
-   return IPCCMD_Send_Wait_Reply0(command, ctrnet.handle, NULL, NULL);
+   return IPCCMD_Send_Wait_Reply(command, ctrnet.handle, NULL, NULL);
 }
 
 const char* ctrnet_sa_to_cstr(ctrnet_sockaddr_in_t* addr)
