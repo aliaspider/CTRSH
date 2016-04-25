@@ -10,7 +10,7 @@
 #include "ctr_net.h"
 #include "ctr_debug.h"
 
-static Result ctrsh_send_file(Handle socket, void* buffer, u32 size, ctrnet_sockaddr_in_t* addr)
+static Result ctrsh_send_from_buffer(Handle socket, void* buffer, u32 size, ctrnet_sockaddr_in_t* addr)
 {
    Result res;
    u64 start_tick, end_tick;
@@ -36,11 +36,49 @@ static Result ctrsh_send_file(Handle socket, void* buffer, u32 size, ctrnet_sock
 
 }
 
-static Result ctrsh_recv_file(Handle socket, void** buffer, ctrnet_sockaddr_in_t* addr)
+
+static Result ctrsh_recv_to_file(Handle socket, Handle file, ctrnet_sockaddr_in_t* addr)
+{
+   Result res;
+   int file_size, remaining;
+
+   u64 start_tick, end_tick;
+
+   start_tick = svcGetSystemTick();
+
+   res = ctrnet_recv(socket, &file_size, 4, 0, addr);
+
+   if (res < 0)
+      return res;
+
+   void* buffer = malloc(CTRSH_FILE_BUFFER_SIZE);
+
+   remaining = file_size;
+
+   while (remaining > 0)
+   {
+      res = ctrnet_recv(socket, buffer, remaining < CTRSH_FILE_BUFFER_SIZE ? remaining : CTRSH_FILE_BUFFER_SIZE, 0, addr);
+
+      if (res < 0)
+         return res;
+
+      remaining -= res;
+   }
+   free(buffer);
+
+   end_tick = svcGetSystemTick();
+
+   printf("recieved : %i Bytes, time: %f\n", file_size, (end_tick - start_tick) / 268123480.0);
+   printf("speed: %.3f KB/s\n", file_size * 268123480.0 / (1024.0 * (end_tick - start_tick)));
+
+   return file_size;
+}
+
+
+static Result ctrsh_recv_to_buffer(Handle socket, void** buffer, ctrnet_sockaddr_in_t* addr)
 {
    Result res;
    int file_size, recv_size;
-
    u64 start_tick, end_tick;
 
    start_tick = svcGetSystemTick();
@@ -133,7 +171,7 @@ void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
 
 //   DEBUG_ERROR(ctrnet_send(socket, &dirent_buffer_offset, 4, 0, addr));
 //   DEBUG_ERROR(ctrnet_send(socket, dirent_buffer, dirent_buffer_offset, 0, addr));
-   DEBUG_ERROR(ctrsh_send_file(socket, dirent_buffer, dirent_buffer_offset, addr));
+   DEBUG_ERROR(ctrsh_send_from_buffer(socket, dirent_buffer, dirent_buffer_offset, addr));
    DEBUG_ERROR(svcCloseHandle(dirhandle));
    free(dirent_buffer);
 }
@@ -141,7 +179,7 @@ void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
 void ctrsh_command_display_image(Handle socket, ctrnet_sockaddr_in_t* addr)
 {
    void* file_buffer = NULL;
-   ssize_t file_size = ctrsh_recv_file(socket, &file_buffer, addr);
+   ssize_t file_size = ctrsh_recv_to_buffer(socket, &file_buffer, addr);
    DEBUG_ERROR(file_size);
 
    if (file_buffer)
@@ -160,6 +198,14 @@ void ctrsh_command_display_image(Handle socket, ctrnet_sockaddr_in_t* addr)
       gfxFlushBuffers();
    }
 }
+
+
+void ctrsh_command_put(Handle socket, ctrnet_sockaddr_in_t* addr)
+{
+   printf("recieving file ...\n");
+   DEBUG_ERROR(ctrsh_recv_to_file(socket, NULL, addr));
+}
+
 
 void ctrsh_wait_command(Handle socket, ctrnet_sockaddr_in_t* addr)
 {

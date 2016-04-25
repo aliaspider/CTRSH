@@ -6,6 +6,10 @@
 #include "common.h"
 #include "commands.h"
 
+#define CTRSH_SERVER_SNDRCV_BUFFER_SIZE 0x8000
+#define CTRSH_FILE_BUFFER_SIZE 0x8000
+
+
 typedef struct
 {
    Handle socket;

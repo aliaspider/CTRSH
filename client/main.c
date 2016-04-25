@@ -161,6 +161,18 @@ void command_ls(int sockfd, const char* args)
    free(buffer);
 
 }
+
+void command_put(int sockfd, const char* args)
+{
+   printf("executing put with argument %s\n", args);
+   DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_PUT));
+   uint32_t filesize = 0x1000000;
+   DEBUG_ERROR(write(sockfd, &filesize, 4));
+   void* buffer =  malloc(filesize);
+   DEBUG_ERROR(write(sockfd, buffer, filesize));
+   free(buffer);
+}
+
 void command_exit(int sockfd, const char* args)
 {
    printf("executing exit with argument %s\n", args);
@@ -181,6 +193,7 @@ command_t ctrsh_commands[] =
 {
    {"send", command_send},
    {"ls", command_ls},
+   {"put", command_put},
    {"exit", command_exit},
    {"quit", command_quit},
    {NULL}

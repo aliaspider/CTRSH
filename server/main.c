@@ -62,7 +62,7 @@ int main(int argc, char** argv)
    DEBUG_ERROR(ctrnet_gethostid(&host_addr.addr));
    DEBUG_ERROR(ctrnet_socket(&socket));
 
-   u32 sockopt_val = 0xFFFF;
+   u32 sockopt_val = CTRSH_SERVER_SNDRCV_BUFFER_SIZE;
    ctrnet_setsockopt(socket, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
    ctrnet_setsockopt(socket, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
 
