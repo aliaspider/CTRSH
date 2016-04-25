@@ -3,54 +3,19 @@
 #include <malloc.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include "ctr_ipc.h"
 #include "ctr_net.h"
 #include "ctr_debug.h"
 
 #define CTRNET_TRANSFER_SIZE_THRESHOLD 0x2000
 
-static struct
-{
-   Handle handle;
-   Handle sharedmem_handle;
-   void* sharedmem_buffer;
-   u32 sharedmem_size;
-} ctrnet;
-
-typedef struct
-{
-   u32 header;
-   union
-   {
-      struct
-      {
-         u32 params[0x3F];
-         u32 static_buffer[0x20];
-      };
-      struct
-      {
-         Result result;
-         u32 val0;
-         u32 val1;
-      } reply;
-   };
-} ipc_command_t;
-
-__attribute((always_inline))
-static inline ipc_command_t* IPC_CommandNew(u32 id, u32 normal_params, u32 translate_params)
-{
-   ipc_command_t* cmd = (ipc_command_t*)((u32)getThreadLocalStorage() + 0x80);
-   cmd->header = IPC_MakeHeader(id, normal_params, translate_params);
-   return cmd;
-}
-
+__attribute((noinline))
 static Result ctrnet_sharedmem_init(Handle memhandle, u32 memsize)
 {
-   ipc_command_t* command = IPC_CommandNew(0x1, 1, 4);
-
-   command->params[0] = memsize;
-   command->params[1] = IPC_Desc_CurProcessHandle();
-   command->params[3] = IPC_Desc_SharedHandles(1);
-   command->params[4] = memhandle;
+   ipc_command_t* command = IPCCMD_New(0x1);
+   IPCCMD_Add_Param(command, memsize);
+   IPCCMD_Add_Desc_CurProcessHandle(command);
+   IPCCMD_Add_Desc_SharedHandles(command, 1, &memhandle);
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -84,7 +49,7 @@ Result ctrnet_init(u32 sharedmem_size)
 
 static Result ctrnet_sharedmem_deinit(void)
 {
-   ipc_command_t* command = IPC_CommandNew(0x19, 0, 0);
+   ipc_command_t* command = IPCCMD_New(0x19);
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -112,7 +77,7 @@ Result ctrnet_exit(void)
 
 Result ctrnet_gethostid(u32* ip_out)
 {
-   ipc_command_t* command = IPC_CommandNew(0x16, 0, 0);
+   ipc_command_t* command = IPCCMD_New(0x16);
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -126,12 +91,12 @@ Result ctrnet_gethostid(u32* ip_out)
 
 Result ctrnet_socket(Handle* socket_out)
 {
-   ipc_command_t* command = IPC_CommandNew(0x2, 3, 2);
+   ipc_command_t* command = IPCCMD_New(0x2);
 
-   command->params[0] = AF_INET;
-   command->params[1] = SOCK_STREAM;
-   command->params[2] = 0;
-   command->params[3] = IPC_Desc_CurProcessHandle();
+   IPCCMD_Add_Param(command, AF_INET);
+   IPCCMD_Add_Param(command, SOCK_STREAM);
+   IPCCMD_Add_Param(command, 0);
+   IPCCMD_Add_Desc_CurProcessHandle(command);
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -144,13 +109,12 @@ Result ctrnet_socket(Handle* socket_out)
 
 Result ctrnet_bind(Handle socket, ctrnet_sockaddr_in_t* addr)
 {
-   ipc_command_t* command = IPC_CommandNew(0x5, 2, 4);
+   ipc_command_t* command = IPCCMD_New(0x5);
 
-   command->params[0] = (u32)socket;
-   command->params[1] = sizeof(*addr);
-   command->params[2] = IPC_Desc_CurProcessHandle();
-   command->params[4] = IPC_Desc_StaticBuffer(sizeof(*addr), 0);
-   command->params[5] = (u32)addr;
+   IPCCMD_Add_Param(command, socket);
+   IPCCMD_Add_Param(command, sizeof(*addr));
+   IPCCMD_Add_Desc_CurProcessHandle(command);
+   IPCCMD_Add_Desc_StaticBuffer(command, 0, addr, sizeof(*addr));
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -165,10 +129,10 @@ Result ctrnet_bind(Handle socket, ctrnet_sockaddr_in_t* addr)
 
 Result ctrnet_listen(Handle socket, int max_connections)
 {
-   ipc_command_t* command = IPC_CommandNew(0x3, 2, 2);
-   command->params[0] = (u32)socket;
-   command->params[1] = (u32)max_connections;
-   command->params[2] = IPC_Desc_CurProcessHandle();
+   ipc_command_t* command = IPCCMD_New(0x3);
+   IPCCMD_Add_Param(command, socket);
+   IPCCMD_Add_Param(command, max_connections);
+   IPCCMD_Add_Desc_CurProcessHandle(command);
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -183,12 +147,11 @@ Result ctrnet_listen(Handle socket, int max_connections)
 
 Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t* client_addr)
 {
-   ipc_command_t* command = IPC_CommandNew(0x4, 2, 2);
-   command->params[0] = (u32)socket;
-   command->params[1] = (u32)sizeof(*client_addr);
-   command->params[2] = IPC_Desc_CurProcessHandle();
-   command->static_buffer[0] = IPC_Desc_StaticBuffer(sizeof(*client_addr), 0);
-   command->static_buffer[1] = (u32)client_addr;
+   ipc_command_t* command = IPCCMD_New(0x4);
+   IPCCMD_Add_Param(command, socket);
+   IPCCMD_Add_Param(command, sizeof(*client_addr));
+   IPCCMD_Add_Desc_CurProcessHandle(command);
+   IPCCMD_Set_StaticBuffer(command, 0, client_addr, sizeof(*client_addr));
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -202,26 +165,22 @@ Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t*
 
 Result ctrnet_recv(Handle socket, void* buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t* src_addr)
 {
-   ipc_command_t* command = (len < CTRNET_TRANSFER_SIZE_THRESHOLD) ? IPC_CommandNew(0x8, 4, 2) : IPC_CommandNew(0x7, 4, 4);
-   command->params[0] = (u32)socket;
-   command->params[1] = (u32)len;
-   command->params[2] = (u32)flags;
-   command->params[3] = (u32)sizeof(*src_addr);
-   command->params[4] = IPC_Desc_CurProcessHandle();
+   ipc_command_t* command = IPCCMD_New(len < CTRNET_TRANSFER_SIZE_THRESHOLD ? 0x8 : 0x7);
+   IPCCMD_Add_Param(command, socket);
+   IPCCMD_Add_Param(command, len);
+   IPCCMD_Add_Param(command, flags);
+   IPCCMD_Add_Param(command, sizeof(*src_addr));
+   IPCCMD_Add_Desc_CurProcessHandle(command);
 
    if (len < CTRNET_TRANSFER_SIZE_THRESHOLD)
    {
-      command->static_buffer[0] = (((u32)len) << 14) | 2;
-      command->static_buffer[1] = (u32)buf;
-      command->static_buffer[2] = ((sizeof(*src_addr)) << 14) | 2;
-      command->static_buffer[3] = (u32)src_addr;
+      IPCCMD_Set_StaticBuffer(command, 0, buf, len);
+      IPCCMD_Set_StaticBuffer(command, 1, src_addr, sizeof(*src_addr));
    }
    else
    {
-      command->params[6] = IPC_Desc_Buffer(len, IPC_BUFFER_W);
-      command->params[7] = (u32)buf;
-      command->static_buffer[0] = IPC_Desc_StaticBuffer(sizeof(*src_addr), 0);
-      command->static_buffer[1] = (u32)src_addr;
+      IPCCMD_Add_Desc_Buffer(command, buf, len, IPC_BUFFER_W);
+      IPCCMD_Set_StaticBuffer(command, 0, src_addr, sizeof(*src_addr));
    }
 
    Result res = svcSendSyncRequest(ctrnet.handle);
@@ -237,26 +196,22 @@ Result ctrnet_recv(Handle socket, void* buf, size_t len, ctrnet_transfer_flags f
 
 Result ctrnet_send(Handle socket, void* buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t* dst_addr)
 {
-   ipc_command_t* command = IPC_CommandNew((len < CTRNET_TRANSFER_SIZE_THRESHOLD) ? 0xA : 0x9, 4, 6);
-   command->params[0] = socket;
-   command->params[1] = len;
-   command->params[2] = flags;
-   command->params[3] = sizeof(*dst_addr);
-   command->params[4] = IPC_Desc_CurProcessHandle();
+   ipc_command_t* command = IPCCMD_New(len < CTRNET_TRANSFER_SIZE_THRESHOLD ? 0xA : 0x9);
+   IPCCMD_Add_Param(command, socket);
+   IPCCMD_Add_Param(command, len);
+   IPCCMD_Add_Param(command, flags);
+   IPCCMD_Add_Param(command, sizeof(*dst_addr));
+   IPCCMD_Add_Desc_CurProcessHandle(command);
 
    if (len < CTRNET_TRANSFER_SIZE_THRESHOLD)
    {
-      command->params[6] = IPC_Desc_StaticBuffer(len, 2);
-      command->params[7] = (u32)buf;
-      command->params[8] = IPC_Desc_StaticBuffer(sizeof(*dst_addr), 1);
-      command->params[9] = (u32)dst_addr;
+      IPCCMD_Add_Desc_StaticBuffer(command, 2, buf, len);
+      IPCCMD_Add_Desc_StaticBuffer(command, 1, dst_addr, sizeof(*dst_addr));
    }
    else
    {
-      command->params[6] = IPC_Desc_StaticBuffer(sizeof(*dst_addr), 1);
-      command->params[7] = (u32)dst_addr;
-      command->params[8] = IPC_Desc_Buffer(len, IPC_BUFFER_R);
-      command->params[9] = (u32)buf;
+      IPCCMD_Add_Desc_StaticBuffer(command, 1, dst_addr, sizeof(*dst_addr));
+      IPCCMD_Add_Desc_Buffer(command, buf, len, IPC_BUFFER_R);
    }
 
    Result res = svcSendSyncRequest(ctrnet.handle);
@@ -272,9 +227,9 @@ Result ctrnet_send(Handle socket, void* buf, size_t len, ctrnet_transfer_flags f
 
 Result ctrnet_close(Handle socket)
 {
-   ipc_command_t* command = IPC_CommandNew(0xB, 1, 2);
-   command->params[0] = socket;
-   command->params[1] = IPC_Desc_CurProcessHandle();
+   ipc_command_t* command = IPCCMD_New(0xB);
+   IPCCMD_Add_Param(command, socket);
+   IPCCMD_Add_Desc_CurProcessHandle(command);
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -289,15 +244,13 @@ Result ctrnet_close(Handle socket)
 
 Result ctrnet_getsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32* optlen)
 {
-   ipc_command_t* command = IPC_CommandNew(0x11, 4, 2);
-   command->params[0] = socket;
-   command->params[1] = level;
-   command->params[2] = optname;
-   command->params[3] = *optlen;
-   command->params[4] = IPC_Desc_CurProcessHandle();
-
-   command->static_buffer[0] = IPC_Desc_StaticBuffer(*optlen, 0);
-   command->static_buffer[1] = (u32)optval;
+   ipc_command_t* command = IPCCMD_New(0x11);
+   IPCCMD_Add_Param(command, socket);
+   IPCCMD_Add_Param(command, level);
+   IPCCMD_Add_Param(command, optname);
+   IPCCMD_Add_Param(command, *optlen);
+   IPCCMD_Add_Desc_CurProcessHandle(command);
+   IPCCMD_Set_StaticBuffer(command, 0, optval, *optlen);
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -314,14 +267,13 @@ Result ctrnet_getsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32
 
 Result ctrnet_setsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32 optlen)
 {
-   ipc_command_t* command = IPC_CommandNew(0x12, 4, 4);
-   command->params[0] = socket;
-   command->params[1] = level;
-   command->params[2] = optname;
-   command->params[3] = optlen;
-   command->params[4] = IPC_Desc_CurProcessHandle();
-   command->params[6] = IPC_Desc_StaticBuffer(optlen, 9);
-   command->params[7] = (u32)optval;
+   ipc_command_t* command = IPCCMD_New(0x12);
+   IPCCMD_Add_Param(command, socket);
+   IPCCMD_Add_Param(command, level);
+   IPCCMD_Add_Param(command, optname);
+   IPCCMD_Add_Param(command, optlen);
+   IPCCMD_Add_Desc_CurProcessHandle(command);
+   IPCCMD_Add_Desc_StaticBuffer(command, 9, optval, optlen);
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
@@ -337,8 +289,8 @@ Result ctrnet_setsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32
 
 Result ctrnet_close_sockets(void)
 {
-   ipc_command_t* command = IPC_CommandNew(0x21, 0, 2);
-   command->params[0] = IPC_Desc_CurProcessHandle();
+   ipc_command_t* command = IPCCMD_New(0x21);
+   IPCCMD_Add_Desc_CurProcessHandle(command);
 
    Result res = svcSendSyncRequest(ctrnet.handle);
 
