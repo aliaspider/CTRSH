@@ -9,6 +9,14 @@
 
 #define CTRNET_TRANSFER_SIZE_THRESHOLD 0x2000
 
+static struct
+{
+   Handle handle;
+   Handle sharedmem_handle;
+   void* sharedmem_buffer;
+   u32 sharedmem_size;
+} ctrnet;
+
 __attribute((noinline))
 static Result ctrnet_sharedmem_init(Handle memhandle, u32 memsize)
 {

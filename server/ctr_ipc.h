@@ -5,14 +5,6 @@
 #include <3ds/svc.h>
 #include <3ds/ipc.h>
 
-static struct
-{
-   Handle handle;
-   Handle sharedmem_handle;
-   void* sharedmem_buffer;
-   u32 sharedmem_size;
-} ctrnet;
-
 typedef struct
 {
    u32 header;
