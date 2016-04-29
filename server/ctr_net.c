@@ -41,6 +41,7 @@ Result ctrnet_init(u32 sharedmem_size)
       svcCloseHandle(ctrnet.sharedmem_handle);
    }
 
+   free(ctrnet.sharedmem_buffer);
    return ret;
 }
 

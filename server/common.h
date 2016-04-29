@@ -18,10 +18,21 @@ typedef enum
 
 typedef struct __attribute((packed))
 {
-   uint32_t entry_size;
-   uint32_t attributes;
-   uint64_t size;
-   uint8_t name [];
+   uint16_t entry_size;
+   uint16_t mbslen;
+   union
+   {
+      struct
+      {
+         uint8_t is_directory;
+         uint8_t is_hidden;
+         uint8_t is_archive;
+         uint8_t is_read_only;
+      };
+      uint32_t attributes;
+   };
+   uint64_t file_size;
+   unsigned char name [];
 }ctrsh_dirent;
 
 #endif // COMMON_H

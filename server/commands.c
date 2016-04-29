@@ -153,16 +153,18 @@ void ctrsh_command_dirent(Handle socket, ctrnet_sockaddr_in_t* addr)
 
          ctrsh_dirent* dst = (ctrsh_dirent*)(dirent_buffer + dirent_buffer_offset);
          dst->attributes = dir_entries[i].attributes;
-         dst->size = dir_entries[i].fileSize;
+         dst->file_size = dir_entries[i].fileSize;
+         dst->mbslen = wcslen(dir_entries[i].name);
          size_t ret = wcstombs((char*)dst->name, dir_entries[i].name, 0x100);
 
          if (ret == (size_t) - 1)
             continue;
 
          dst->name[ret] = '\0';
-
-         dirent_buffer_offset = &dst->name[ret] + 1 - dirent_buffer;
-         dst->entry_size = &dst->name[ret] + 1 - (u8*)dst;
+         ret += 0x8;
+         ret &= ~0x7;
+         dirent_buffer_offset = &dst->name[ret] - dirent_buffer;
+         dst->entry_size = &dst->name[ret] - (u8*)dst;
       }
    }
 
