@@ -2,7 +2,7 @@
 #define COMMANDS_H
 
 #include <3ds/types.h>
-#include "common.h"
+#include "server_cmd.h"
 #include "ctr_net.h"
 
 typedef void (*ctrsh_command_fn_t)(Handle socket, ctrnet_sockaddr_in_t* addr);

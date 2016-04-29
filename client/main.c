@@ -18,7 +18,11 @@
 #include <stdbool.h>
 #include <getopt.h>
 
-#include "../server/common.h"
+#include "../server/server_cmd.h"
+#include "common.h"
+#include "file_list.h"
+
+
 #define IP2INT(a, b, c, d) (a | (b << 8) | (c << 16) | (d <<24))
 #define DEBUG_ERROR(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno)); exit(0);}}while(0)
 #define DEBUG_ERROR_stay(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno));}}while(0)
@@ -27,9 +31,6 @@
 #define CTR_IP          IP2INT(10, 42, 0, 237)
 #define CTR_PORT        5000
 #define HISTORY_FILE    "ctrsh.hist"
-#define OFFLINE_TEST
-
-
 
 #define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"
@@ -76,163 +77,6 @@ struct
    void* buffer;
    size_t size;
 } rgui;
-
-static void ctrsh_dirent_list_new(ctrsh_dirent* first, ctrsh_dirent_list_t* out)
-{
-   int i;
-   ctrsh_dirent* dir = first;
-   out->count = 0;
-
-   while (dir->entry_size)
-   {
-      dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
-      out->count++;
-   }
-
-   out->entries = malloc(out->count * sizeof(ctrsh_dirent*));
-
-   dir = first;
-
-   for (i = 0; i < out->count; i++)
-   {
-      out->entries[i] = dir;
-      dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
-   }
-}
-
-static void ctrsh_dirent_list_sort(ctrsh_dirent_list_t* list)
-{
-   int i;
-   bool finished = false;
-
-   while (!finished)
-   {
-      finished = true;
-
-      for (i = 0; i < list->count - 1; i++)
-      {
-         if (strcasecmp(list->entries[i]->name, list->entries[i + 1]->name) > 0)
-         {
-            ctrsh_dirent* tmp = list->entries[i];
-            list->entries[i] = list->entries[i + 1];
-            list->entries[i + 1] = tmp;
-            finished = false;
-         }
-      }
-   }
-}
-
-
-static void ctrsh_dirent_list_sort_dir(ctrsh_dirent_list_t* list)
-{
-   int i;
-   ctrsh_dirent** old_list = list->entries;
-   list->entries = malloc(sizeof(ctrsh_dirent*) * list->count);
-   int pos = 0;
-
-   for (i = 0; i < list->count; i++)
-   {
-      if (old_list[i]->is_directory)
-         list->entries[pos++] = old_list[i];
-   }
-
-   for (i = 0; i < list->count; i++)
-   {
-      if (!old_list[i]->is_directory)
-         list->entries[pos++] = old_list[i];
-   }
-
-   free(old_list);
-}
-
-
-static void ctrsh_dirent_list_print(ctrsh_dirent_list_t* list)
-{
-   int i, j;
-   int term_w;
-   rl_get_screen_size(NULL, &term_w);
-
-   const int col_spacing = 2;
-   const int max_colums = 20;
-   int col_widths[max_colums];
-   int col_entries[max_colums];
-
-   int dir;
-   int w_remaining;
-   int columns = max_colums;
-
-   do
-   {
-      dir = 0;
-      w_remaining = term_w;
-
-      for (i = 0; i < columns; i++)
-         col_entries[i] = list->count / columns;
-
-      for (i = 0; i < (list->count % columns); i++)
-         col_entries[i]++;
-
-      for (i = 0; i < columns; i++)
-      {
-         col_widths[i] = 0;
-
-         for (j = 0; j < col_entries[i]; j++)
-         {
-            if (col_widths[i] < list->entries[dir]->mbslen)
-               col_widths[i] = list->entries[dir]->mbslen;
-
-            dir++;
-         }
-
-         w_remaining -= col_widths[i] + col_spacing;
-
-         if (w_remaining < 0)
-            break;
-      }
-   }
-   while ((w_remaining < 0) && (--columns > 1));
-
-   int k;
-
-   for (j = 0; j < col_entries[0]; j++)
-   {
-      dir = 0;
-
-      for (k = 0; k < j; k++)
-         dir++;
-
-      for (i = 0; (i < columns) && (dir < list->count); i++)
-      {
-         if (list->entries[dir]->is_directory)
-            printf(KLYL "%s" KNRM, list->entries[dir]->name);
-         else
-            printf("%s", list->entries[dir]->name);
-
-         for (k = 0; k < (col_widths[i] + col_spacing - list->entries[dir]->mbslen); k++)
-            putchar(' ');
-
-         for (k = 0; k < col_entries[i]; k++)
-            dir++;
-      }
-
-      printf("\n");
-   }
-
-}
-
-static void ctrsh_dirent_list_print_detailed(ctrsh_dirent_list_t* list)
-{
-   int i;
-
-   for (i = 0; i < list->count; i++)
-   {
-      if (list->entries[i]->is_directory)
-         printf(" ----------  ##  " KLYL "%s \n" KNRM, list->entries[i]->name);
-      else
-         printf(" %10lli  ##  %s \n", list->entries[i]->file_size, list->entries[i]->name);
-   }
-}
-
 
 static inline int send_command(int socket, uint32_t command_id)
 {
@@ -315,17 +159,16 @@ void command_ls(int sockfd, int argc, char* const* argv)
    fclose(fp);
 #endif
 
-   ctrsh_dirent_list_t dir_list;
-   ctrsh_dirent_list_new((ctrsh_dirent*)buffer, &dir_list);
-   ctrsh_dirent_list_sort(&dir_list);
-   ctrsh_dirent_list_sort_dir(&dir_list);
+   filelist_t* filelist = filelist_new((ctrsh_dirent*)buffer);
+   filelist_sort(filelist);
+   filelist_sort_dir(filelist);
 
    if (detailed_view)
-      ctrsh_dirent_list_print_detailed(&dir_list);
+      filelist_print_detailed(filelist);
    else
-      ctrsh_dirent_list_print(&dir_list);
+      filelist_print(filelist);
 
-   free(dir_list.entries);
+   filelist_free(filelist);
    free(buffer);
 
 }

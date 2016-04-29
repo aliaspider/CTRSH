@@ -3,7 +3,7 @@
 
 #include <3ds/types.h>
 #include <3ds/services/fs.h>
-#include "common.h"
+#include "server_cmd.h"
 #include "commands.h"
 
 #define CTRSH_SERVER_SNDRCV_BUFFER_SIZE 0x8000

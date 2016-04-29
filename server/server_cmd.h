@@ -1,5 +1,5 @@
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef SERVER_CMD_H
+#define SERVER_CMD_H
 
 #include <stdint.h>
 #include <sys/cdefs.h>
@@ -35,4 +35,4 @@ typedef struct __attribute((packed))
    unsigned char name [];
 }ctrsh_dirent;
 
-#endif // COMMON_H
+#endif // SERVER_CMD_H
