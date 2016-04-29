@@ -25,7 +25,7 @@
 #define CTR_IP          IP2INT(10, 42, 0, 237)
 #define CTR_PORT        5000
 #define HISTORY_FILE    "ctrsh.hist"
-//#define OFFLINE_TEST
+#define OFFLINE_TEST
 
 
 
@@ -103,7 +103,7 @@ static void ctrsh_dirent_list_sort(ctrsh_dirent_list_t* list)
       finished = true;
       for(i = 0; i < list->count - 1; i++)
       {
-         if(strcmp(list->entries[i], list->entries[i + 1]) < 0)
+         if(strcasecmp(list->entries[i]->name, list->entries[i + 1]->name) > 0)
          {
             ctrsh_dirent* tmp = list->entries[i];
             list->entries[i] = list->entries[i + 1];
@@ -166,10 +166,9 @@ void command_ls(int sockfd, const char* args)
    fread(buffer, 1, buffer_size, fp);
    fclose(fp);
 #endif
-   ctrsh_dirent* dir;
 
    ctrsh_dirent_list_t dir_list;
-   ctrsh_dirent_list_new(dir, &dir_list);
+   ctrsh_dirent_list_new((ctrsh_dirent*)buffer, &dir_list);
    ctrsh_dirent_list_sort(&dir_list);
 
 #if 1
@@ -181,24 +180,17 @@ void command_ls(int sockfd, const char* args)
    int col_widths[max_colums];
    int col_entries[max_colums];
 
-   dir = (ctrsh_dirent*)buffer;
-   int entries = 0;
-   while (dir->entry_size)
-   {
-      entries++;
-      dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
-   }
-
+   int dir;
    int w_remaining;
    int columns = max_colums;
 
    do
    {
-      dir = (ctrsh_dirent*)buffer;
+      dir = 0;
       w_remaining = term_w;
       for (i = 0; i < columns; i++)
-         col_entries[i] = entries / columns;
-      for (i = 0; i < (entries % columns); i++)
+         col_entries[i] = dir_list.count / columns;
+      for (i = 0; i < (dir_list.count % columns); i++)
          col_entries[i]++;
 
       for (i = 0; i < columns; i++)
@@ -206,9 +198,9 @@ void command_ls(int sockfd, const char* args)
          col_widths[i] = 0;
          for(j = 0; j < col_entries[i]; j++)
          {
-            if(col_widths[i] < dir->mbslen)
-               col_widths[i] = dir->mbslen;
-            dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
+            if(col_widths[i] < dir_list.entries[dir]->mbslen)
+               col_widths[i] = dir_list.entries[dir]->mbslen;
+            dir++;
          }
          w_remaining -= col_widths[i] + col_spacing;
          if(w_remaining < 0)
@@ -220,21 +212,21 @@ void command_ls(int sockfd, const char* args)
    int k;
    for(j = 0; j < col_entries[0]; j++)
    {
-      dir = (ctrsh_dirent*)buffer;
+      dir = 0;
       for(k = 0; k < j; k++)
-         dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
+         dir++;
 
-      for (i = 0; (i < columns) && (dir->entry_size); i++)
+      for (i = 0; (i < columns) && (dir < dir_list.count); i++)
       {
-         if (dir->is_directory)
-            printf(KLYL "%s" KNRM, dir->name);
+         if (dir_list.entries[dir]->is_directory)
+            printf(KLYL "%s" KNRM, dir_list.entries[dir]->name);
          else
-            printf("%s",dir->name);
+            printf("%s",dir_list.entries[dir]->name);
 
-         for(k = 0; k < (col_widths[i] + col_spacing - dir->mbslen); k++)
+         for(k = 0; k < (col_widths[i] + col_spacing - dir_list.entries[dir]->mbslen); k++)
             putchar(' ');
          for(k = 0; k < col_entries[i]; k++)
-            dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
+            dir++;
       }
       printf("\n");
    }
@@ -261,6 +253,7 @@ void command_ls(int sockfd, const char* args)
 
 
 
+   free(dir_list.entries);
    free(buffer);
 
 }
@@ -469,7 +462,8 @@ int main(int argc, char* argv[])
          {
             if (!strncmp(line, cmd->name, strlen(cmd->name)))
             {
-               cmd->fn(sockfd, line + strlen(cmd->name) + 1);
+               cmd->fn(sockfd,
+                       strlen(line) > strlen(cmd->name) ? line + strlen(cmd->name) + 1 : NULL);
                break;
             }
 
