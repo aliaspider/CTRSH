@@ -6,6 +6,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <errno.h>
@@ -15,6 +16,7 @@
 #include <readline/history.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <getopt.h>
 
 #include "../server/common.h"
 #define IP2INT(a, b, c, d) (a | (b << 8) | (c << 16) | (d <<24))
@@ -45,7 +47,7 @@
 #define KLPR  "\x1B[95m"
 #define KTRQ  "\x1B[96m"
 
-typedef void(*command_fn_t)(int sockfd, const char*);
+typedef void(*command_fn_t)(int sockfd, int argc, char* const* argv);
 typedef struct
 {
    const char* name;
@@ -58,13 +60,15 @@ struct
    char history_file[PATH_MAX];
    bool running;
    bool server_running;
+   int server_ip;
+   int server_port;
 } ctrsh;
 
 typedef struct
 {
    ctrsh_dirent** entries;
    int count;
-}ctrsh_dirent_list_t;
+} ctrsh_dirent_list_t;
 
 
 struct
@@ -78,7 +82,8 @@ static void ctrsh_dirent_list_new(ctrsh_dirent* first, ctrsh_dirent_list_t* out)
    int i;
    ctrsh_dirent* dir = first;
    out->count = 0;
-   while(dir->entry_size)
+
+   while (dir->entry_size)
    {
       dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
       out->count++;
@@ -87,7 +92,8 @@ static void ctrsh_dirent_list_new(ctrsh_dirent* first, ctrsh_dirent_list_t* out)
    out->entries = malloc(out->count * sizeof(ctrsh_dirent*));
 
    dir = first;
-   for(i = 0; i < out->count; i++)
+
+   for (i = 0; i < out->count; i++)
    {
       out->entries[i] = dir;
       dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
@@ -98,12 +104,14 @@ static void ctrsh_dirent_list_sort(ctrsh_dirent_list_t* list)
 {
    int i;
    bool finished = false;
-   while(!finished)
+
+   while (!finished)
    {
       finished = true;
-      for(i = 0; i < list->count - 1; i++)
+
+      for (i = 0; i < list->count - 1; i++)
       {
-         if(strcasecmp(list->entries[i]->name, list->entries[i + 1]->name) > 0)
+         if (strcasecmp(list->entries[i]->name, list->entries[i + 1]->name) > 0)
          {
             ctrsh_dirent* tmp = list->entries[i];
             list->entries[i] = list->entries[i + 1];
@@ -114,14 +122,130 @@ static void ctrsh_dirent_list_sort(ctrsh_dirent_list_t* list)
    }
 }
 
+
+static void ctrsh_dirent_list_sort_dir(ctrsh_dirent_list_t* list)
+{
+   int i;
+   ctrsh_dirent** old_list = list->entries;
+   list->entries = malloc(sizeof(ctrsh_dirent*) * list->count);
+   int pos = 0;
+
+   for (i = 0; i < list->count; i++)
+   {
+      if (old_list[i]->is_directory)
+         list->entries[pos++] = old_list[i];
+   }
+
+   for (i = 0; i < list->count; i++)
+   {
+      if (!old_list[i]->is_directory)
+         list->entries[pos++] = old_list[i];
+   }
+
+   free(old_list);
+}
+
+
+static void ctrsh_dirent_list_print(ctrsh_dirent_list_t* list)
+{
+   int i, j;
+   int term_w;
+   rl_get_screen_size(NULL, &term_w);
+
+   const int col_spacing = 2;
+   const int max_colums = 20;
+   int col_widths[max_colums];
+   int col_entries[max_colums];
+
+   int dir;
+   int w_remaining;
+   int columns = max_colums;
+
+   do
+   {
+      dir = 0;
+      w_remaining = term_w;
+
+      for (i = 0; i < columns; i++)
+         col_entries[i] = list->count / columns;
+
+      for (i = 0; i < (list->count % columns); i++)
+         col_entries[i]++;
+
+      for (i = 0; i < columns; i++)
+      {
+         col_widths[i] = 0;
+
+         for (j = 0; j < col_entries[i]; j++)
+         {
+            if (col_widths[i] < list->entries[dir]->mbslen)
+               col_widths[i] = list->entries[dir]->mbslen;
+
+            dir++;
+         }
+
+         w_remaining -= col_widths[i] + col_spacing;
+
+         if (w_remaining < 0)
+            break;
+      }
+   }
+   while ((w_remaining < 0) && (--columns > 1));
+
+   int k;
+
+   for (j = 0; j < col_entries[0]; j++)
+   {
+      dir = 0;
+
+      for (k = 0; k < j; k++)
+         dir++;
+
+      for (i = 0; (i < columns) && (dir < list->count); i++)
+      {
+         if (list->entries[dir]->is_directory)
+            printf(KLYL "%s" KNRM, list->entries[dir]->name);
+         else
+            printf("%s", list->entries[dir]->name);
+
+         for (k = 0; k < (col_widths[i] + col_spacing - list->entries[dir]->mbslen); k++)
+            putchar(' ');
+
+         for (k = 0; k < col_entries[i]; k++)
+            dir++;
+      }
+
+      printf("\n");
+   }
+
+}
+
+static void ctrsh_dirent_list_print_detailed(ctrsh_dirent_list_t* list)
+{
+   int i;
+
+   for (i = 0; i < list->count; i++)
+   {
+      if (list->entries[i]->is_directory)
+         printf(" ----------  ##  " KLYL "%s \n" KNRM, list->entries[i]->name);
+      else
+         printf(" %10lli  ##  %s \n", list->entries[i]->file_size, list->entries[i]->name);
+   }
+}
+
+
 static inline int send_command(int socket, uint32_t command_id)
 {
    return write(socket, &command_id, 4);
 }
 
-void command_send(int sockfd, const char* args)
+void command_send(int sockfd, int argc, char* const* argv)
 {
-   printf("executing send with argument %s\n", args);
+   int i;
+   printf("executing send with arguments:\n");
+
+   for (i = 0; i < argc; i++)
+      printf("%s\n", argv[i]);
 
    printf("sending file\n");
 #ifndef OFFLINE_TEST
@@ -130,10 +254,34 @@ void command_send(int sockfd, const char* args)
    DEBUG_ERROR(write(sockfd, rgui.buffer, rgui.size));
 #endif
 }
-void command_ls(int sockfd, const char* args)
+void command_ls(int sockfd, int argc, char* const* argv)
 {
    int i, j;
-   printf("executing ls with argument %s\n", args);
+
+   bool detailed_view = false;
+   int opt;
+
+   while ((opt = getopt(argc, argv, "lh")) != -1)
+   {
+      switch (opt)
+      {
+      case 'l':
+         detailed_view = true;
+         break;
+
+      case '?':
+      case 'h':
+         printf("\nUsage: ls [options]\n\n");
+         printf("   -l   detailed view\n");
+         printf("   -h   print help\n");
+         printf("\n");
+         return;
+
+      default:
+         break;
+      }
+   }
+
 #ifndef OFFLINE_TEST
    DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DIRENT));
    uint32_t buffer_size;
@@ -170,97 +318,25 @@ void command_ls(int sockfd, const char* args)
    ctrsh_dirent_list_t dir_list;
    ctrsh_dirent_list_new((ctrsh_dirent*)buffer, &dir_list);
    ctrsh_dirent_list_sort(&dir_list);
+   ctrsh_dirent_list_sort_dir(&dir_list);
 
-#if 1
-   int term_w;
-   rl_get_screen_size(NULL, &term_w);
-
-   const int col_spacing = 2;
-   const int max_colums = 20;
-   int col_widths[max_colums];
-   int col_entries[max_colums];
-
-   int dir;
-   int w_remaining;
-   int columns = max_colums;
-
-   do
-   {
-      dir = 0;
-      w_remaining = term_w;
-      for (i = 0; i < columns; i++)
-         col_entries[i] = dir_list.count / columns;
-      for (i = 0; i < (dir_list.count % columns); i++)
-         col_entries[i]++;
-
-      for (i = 0; i < columns; i++)
-      {
-         col_widths[i] = 0;
-         for(j = 0; j < col_entries[i]; j++)
-         {
-            if(col_widths[i] < dir_list.entries[dir]->mbslen)
-               col_widths[i] = dir_list.entries[dir]->mbslen;
-            dir++;
-         }
-         w_remaining -= col_widths[i] + col_spacing;
-         if(w_remaining < 0)
-            break;
-      }
-   }
-   while((w_remaining < 0) && (--columns > 1));
-   
-   int k;
-   for(j = 0; j < col_entries[0]; j++)
-   {
-      dir = 0;
-      for(k = 0; k < j; k++)
-         dir++;
-
-      for (i = 0; (i < columns) && (dir < dir_list.count); i++)
-      {
-         if (dir_list.entries[dir]->is_directory)
-            printf(KLYL "%s" KNRM, dir_list.entries[dir]->name);
-         else
-            printf("%s",dir_list.entries[dir]->name);
-
-         for(k = 0; k < (col_widths[i] + col_spacing - dir_list.entries[dir]->mbslen); k++)
-            putchar(' ');
-         for(k = 0; k < col_entries[i]; k++)
-            dir++;
-      }
-      printf("\n");
-   }
-
-   
-   
-#else
-
-   dir = (ctrsh_dirent*)buffer;
-
-   while (dir->entry_size)
-   {
-      if (dir->is_directory)
-         printf(" ----------  ##  " KLYL "%s \n" KNRM, dir->name);
-
-      else
-         printf(" %10lli  ##  %s \n", dir->file_size, dir->name);
-
-      dir = (ctrsh_dirent*)((uintptr_t)dir + dir->entry_size);
-   }
-
-#endif
-
-
-
+   if (detailed_view)
+      ctrsh_dirent_list_print_detailed(&dir_list);
+   else
+      ctrsh_dirent_list_print(&dir_list);
 
    free(dir_list.entries);
    free(buffer);
 
 }
 
-void command_put(int sockfd, const char* args)
+void command_put(int sockfd, int argc, char* const* argv)
 {
-   printf("executing put with argument %s\n", args);
+   int i;
+   printf("executing %s with arguments:\n", argv[0]);
+
+   for (i = 0; i < argc; i++)
+      printf("%s\n", argv[i]);
 #ifndef OFFLINE_TEST
    DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_PUT));
    uint32_t filesize = 0x1000000;
@@ -271,18 +347,28 @@ void command_put(int sockfd, const char* args)
 #endif
 }
 
-void command_exit(int sockfd, const char* args)
+void command_exit(int sockfd, int argc, char* const* argv)
 {
-   printf("executing exit with argument %s\n", args);
+   int i;
+   printf("executing exit with arguments:\n");
+
+   for (i = 0; i < argc; i++)
+      printf("%s\n", argv[i]);
+
 #ifndef OFFLINE_TEST
    DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_EXIT));
 #endif
    ctrsh.server_running = false;
 }
 
-void command_quit(int sockfd, const char* args)
+void command_quit(int sockfd, int argc, char* const* argv)
 {
-   printf("executing exit with argument %s\n", args);
+   int i;
+   printf("executing quit with arguments:\n");
+
+   for (i = 0; i < argc; i++)
+      printf("%s\n", argv[i]);
+
 #ifndef OFFLINE_TEST
    DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_EXIT));
 #endif
@@ -343,15 +429,33 @@ static int rl_printf(const char* fmt, ...)
 
 static char** ctrsh_completion_function(const char* str, int start, int end)
 {
-   if (start == 0)
-      return rl_completion_matches(str, ctrsh_completion_commands);
+   int i;
+   for(i = 0; i < start; i++)
+      if(!isspace(rl_line_buffer[i]))
+         return rl_completion_matches(str, rl_filename_completion_function);
 
-   rl_completion_matches(str, rl_filename_completion_function);
+   return rl_completion_matches(str, ctrsh_completion_commands);
+
+}
+
+static void ctrsh_print_help(void)
+{
+   printf("\nUsage: ctrsh [options]\n\n");
+   printf("   -a   address\n");
+   printf("   -p   port\n");
+   printf("   -v   print version\n");
+   printf("   -h   print help\n");
+   printf("\n");
+}
+
+
+static void ctrsh_print_version(void)
+{
+   printf("CTRSH version 0.01\n");
 }
 
 int main(int argc, char* argv[])
 {
-   printf("loading file\n");
    FILE* rgui_fp = fopen("./rgui.dat", "rb");
    DEBUG_ERROR(rgui_fp);
    fseek(rgui_fp, 0, SEEK_END);
@@ -361,12 +465,69 @@ int main(int argc, char* argv[])
    fread(rgui.buffer, 1, rgui.size, rgui_fp);
    fclose(rgui_fp);
 
+
+   int opt;
+
+   ctrsh.history_file[0] = '0';
+   ctrsh.server_ip = CTR_IP;
+   ctrsh.server_port = CTR_PORT;
+
+   while ((opt = getopt(argc, argv, "hvsa:p:")) != -1)
+   {
+      switch (opt)
+      {
+      case 'v':
+         ctrsh_print_version();
+         return 0;
+
+      case 's':
+         strncpy(ctrsh.history_file, optarg, sizeof(ctrsh.history_file));
+         break;
+
+      case 'a':
+      {
+         ctrsh.server_ip = inet_addr(optarg);
+
+         if (ctrsh.server_ip == -1)
+         {
+            printf("invalid ip : %s\n", optarg);
+            return 1;
+         }
+
+         break;
+      }
+
+      case 'p':
+         ctrsh.server_port = atoi(optarg);
+
+         if (ctrsh.server_port  > 0xFFFF)
+         {
+            printf("invalid port number : %s\n", optarg);
+            return 1;
+         }
+
+         break;
+
+      default:
+      case '?':
+      case 'h':
+         ctrsh_print_help();
+         return 0;
+      }
+
+
+   }
+
    const char* home_path = getenv("HOME");
 
-   if (home_path)
-      snprintf(ctrsh.history_file, sizeof(ctrsh.history_file), "%s/" HISTORY_FILE, home_path);
-   else
-      strncpy(ctrsh.history_file, HISTORY_FILE, sizeof(ctrsh.history_file));
+
+   if (!ctrsh.history_file[0])
+   {
+      if (home_path)
+         snprintf(ctrsh.history_file, sizeof(ctrsh.history_file), "%s/" HISTORY_FILE, home_path);
+      else
+         strncpy(ctrsh.history_file, HISTORY_FILE, sizeof(ctrsh.history_file));
+   }
 
    read_history(ctrsh.history_file);
    history_set_pos(history_length);
@@ -434,10 +595,13 @@ int main(int argc, char* argv[])
       setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
 
       serv_addr.sin_family = AF_INET;
-      serv_addr.sin_addr.s_addr = CTR_IP;
-      serv_addr.sin_port = htons(CTR_PORT);
+      serv_addr.sin_addr.s_addr = ctrsh.server_ip;
+      serv_addr.sin_port = htons(ctrsh.server_port);
       int ret;
 #ifndef OFFLINE_TEST
+      printf("connecting to %i.%i.%i.%i:%i\n", ((uint8_t*)&ctrsh.server_ip)[0], ((uint8_t*)&ctrsh.server_ip)[1],
+             ((uint8_t*)&ctrsh.server_ip)[2], ((uint8_t*)&ctrsh.server_ip)[3], ctrsh.server_port);
+
       do
       {
          ret = connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
@@ -447,10 +611,29 @@ int main(int argc, char* argv[])
             usleep(10000);
       }
       while (ret < 0);
+
 #endif
+
       while (ctrsh.server_running)
       {
-         char* line = readline("test:/> ");
+         char* line_buffer = readline("test:/> ");
+         char* line = line_buffer;
+         char* last = line;
+
+         while (*line)
+         {
+            if (!isspace(*line))
+               last = line + 1;
+
+            line++;
+         }
+
+         *last = '\0';
+
+         line = line_buffer;
+
+         while (isspace(*line))
+            line++;
 
          if (line && *line)
             add_history(line);
@@ -462,15 +645,57 @@ int main(int argc, char* argv[])
          {
             if (!strncmp(line, cmd->name, strlen(cmd->name)))
             {
-               cmd->fn(sockfd,
-                       strlen(line) > strlen(cmd->name) ? line + strlen(cmd->name) + 1 : NULL);
+               int cmd_argc = 1;
+               char* ptr = line;
+
+               while (*ptr)
+               {
+                  if (isspace(*ptr))
+                  {
+                     *ptr = '\0';
+                     ptr++;
+
+                     while (isspace(*ptr))
+                        ptr++;
+
+                     if (*ptr)
+                        cmd_argc++;
+                  }
+
+                  ptr++;
+               }
+
+               int idx;
+               char* cmd_argv[cmd_argc + 1];
+               ptr = line;
+
+               for (idx = 0; idx < cmd_argc; idx++)
+               {
+                  while (isspace(*ptr))
+                     ptr++;
+
+                  cmd_argv[idx] = ptr;
+
+                  while (*ptr)
+                     ptr++;
+
+                  while (!*ptr)
+                     ptr++;
+               }
+
+               cmd_argv[cmd_argc] = NULL;
+               optind = 1;
+               optopt = 0;
+               optarg = NULL;
+
+               cmd->fn(sockfd, cmd_argc, cmd_argv);
                break;
             }
 
             cmd++;
          }
 
-         free(line);
+         free(line_buffer);
       }
 
       close(sockfd);
