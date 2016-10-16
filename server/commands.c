@@ -208,7 +208,6 @@ void ctrsh_command_put(Handle socket, ctrnet_sockaddr_in_t* addr)
    DEBUG_ERROR(ctrsh_recv_to_file(socket, 0, addr));
 }
 
-
 void ctrsh_wait_command(Handle socket, ctrnet_sockaddr_in_t* addr)
 {
    u32 command_id = 0;

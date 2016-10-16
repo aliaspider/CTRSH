@@ -9,23 +9,7 @@
 #include "common.h"
 #include "../server/server_cmd.h"
 
-#define KNRM  "\x1B[0m"
-#define KRED  "\x1B[31m"
-#define KGRN  "\x1B[32m"
-#define KYEL  "\x1B[33m"
-#define KBLU  "\x1B[34m"
-#define KMAG  "\x1B[35m"
-#define KCYN  "\x1B[36m"
-#define KWHT  "\x1B[37m"
-#define KGRY  "\x1B[90m"
-#define KLRD  "\x1B[91m"
-#define KLGR  "\x1B[92m"
-#define KLYL  "\x1B[93m"
-#define KLBL  "\x1B[94m"
-#define KLPR  "\x1B[95m"
-#define KTRQ  "\x1B[96m"
-
-static const char* filename_col[FILE_TYPE_MAX] = {KYEL,NULL,KRED,KMAG,KCYN,NULL};
+static const char* filename_col[FILE_TYPE_MAX] = {KBLD KBLU, KNRM, KBLD KYEL, KMAG, KBLD KLRD};
 
 filelist_t* filelist_new(ctrsh_dirent* first)
 {
@@ -122,22 +106,20 @@ void filelist_sort_dir(filelist_t* list)
 
 void filelist_print(filelist_t* list)
 {
-   int i, j;
-   int term_w;
-   rl_get_screen_size(NULL, &term_w);
-
    const int col_spacing = 2;
    const int max_colums = 20;
+
    int col_widths[max_colums];
    int col_entries[max_colums];
 
-   int dir;
-   int w_remaining;
-   int columns = max_colums;
+   int i, j, k, id, term_w, w_remaining, columns;
+
+   rl_get_screen_size(NULL, &term_w);
+   columns = max_colums;
 
    do
    {
-      dir = 0;
+      id = 0;
       w_remaining = term_w;
 
       for (i = 0; i < columns; i++)
@@ -152,10 +134,10 @@ void filelist_print(filelist_t* list)
 
          for (j = 0; j < col_entries[i]; j++)
          {
-            if (col_widths[i] < list->files[dir].mbslen)
-               col_widths[i] = list->files[dir].mbslen;
+            if (col_widths[i] < list->files[id].mbslen)
+               col_widths[i] = list->files[id].mbslen;
 
-            dir++;
+            id++;
          }
 
          w_remaining -= col_widths[i] + col_spacing;
@@ -166,27 +148,15 @@ void filelist_print(filelist_t* list)
    }
    while ((w_remaining < 0) && (--columns > 1));
 
-   int k;
 
-   for (j = 0; j < col_entries[0]; j++)
+   for (j = 0; j < col_entries[0]; j++, id = j)
    {
-      dir = 0;
-
-      for (k = 0; k < j; k++)
-         dir++;
-
-      for (i = 0; (i < columns) && (dir < list->size); i++)
+      for (i = 0; (i < columns) && (id < list->size); i++, id += col_entries[i])
       {
-         if(filename_col[list->files[dir].type])
-            printf("%s%s" KNRM, filename_col[list->files[dir].type], list->files[dir].name);
-         else
-            printf("%s", list->files[dir].name);
+         printf("%s%s" KNRM, filename_col[list->files[id].type], list->files[id].name);
 
-         for (k = 0; k < (col_widths[i] + col_spacing - list->files[dir].mbslen); k++)
+         for (k = 0; k < (col_widths[i] + col_spacing - list->files[id].mbslen); k++)
             putchar(' ');
-
-         for (k = 0; k < col_entries[i]; k++)
-            dir++;
       }
 
       printf("\n");
@@ -201,9 +171,9 @@ void filelist_print_detailed(filelist_t* list)
 
    for (i = 0; i < list->size; i++)
    {
-      if(filename_col[list->files[i].type])
-         printf(" ----------  ##  %s%s \n" KNRM, filename_col[list->files[i].type], list->files[i].name);
+      if(list->files[i].type == FILE_TYPE_DIRECTORY)
+         printf(" ----------  %s%s \n" KNRM, filename_col[list->files[i].type], list->files[i].name);
       else
-         printf(" %10lli  ##  %s \n", list->files[i].size, list->files[i].name);
+         printf(" %10lli  %s%s \n" KNRM, list->files[i].size, filename_col[list->files[i].type], list->files[i].name);
    }
 }

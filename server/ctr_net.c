@@ -7,7 +7,23 @@
 #include "ctr_net.h"
 #include "ctr_debug.h"
 
-#define CTRNET_TRANSFER_SIZE_THRESHOLD 0x2000
+#define SOCU_TRANSFER_SIZE_THRESHOLD 0x2000
+
+#define SOCU_CMD_INIT            0x01
+#define SOCU_CMD_SOCKET          0x02
+#define SOCU_CMD_LISTEN          0x03
+#define SOCU_CMD_ACCEPT          0x04
+#define SOCU_CMD_BIND            0x05
+#define SOCU_CMD_RECV_MAP        0x07
+#define SOCU_CMD_RECV_NOMAP      0x08
+#define SOCU_CMD_SEND_MAP        0x09
+#define SOCU_CMD_SEND_NOMAP      0x0A
+#define SOCU_CMD_CLOSE           0x0B
+#define SOCU_CMD_GET_SOCK_OPT    0x11
+#define SOCU_CMD_SET_SOCK_OPT    0x12
+#define SOCU_CMD_GET_HOST_ID     0x16
+#define SOCU_CMD_EXIT            0x19
+#define SOCU_CMD_CLOSE_SOCKETS   0x21
 
 static struct
 {
@@ -27,7 +43,7 @@ Result ctrnet_init(u32 sharedmem_size)
    {
       if (!(ret = srvGetServiceHandle(&ctrnet.handle, "soc:U")))
       {
-         ipc_command_t* command = IPCCMD_New(0x1);
+         ipc_command_t* command = IPCCMD_New(SOCU_CMD_INIT);
          IPCCMD_Add_Param(command, ctrnet.sharedmem_size);
          IPCCMD_Add_Desc_CurProcessHandle(command);
          IPCCMD_Add_Desc_SharedHandles(command, 1, &ctrnet.sharedmem_handle);
@@ -49,7 +65,7 @@ Result ctrnet_exit(void)
 {
    Result ret;
 
-   if ((ret = IPCCMD_Send_Wait_Reply(IPCCMD_New(0x19), ctrnet.handle, NULL, NULL)))
+   if ((ret = IPCCMD_Send_Wait_Reply(IPCCMD_New(SOCU_CMD_EXIT), ctrnet.handle, NULL, NULL)))
       return ret;
 
    if ((ret = svcCloseHandle(ctrnet.handle)))
@@ -63,12 +79,12 @@ Result ctrnet_exit(void)
 
 Result ctrnet_gethostid(u32* ip_out)
 {
-   return IPCCMD_Send_Wait_Reply(IPCCMD_New(0x16), ctrnet.handle, ip_out, NULL);
+   return IPCCMD_Send_Wait_Reply(IPCCMD_New(SOCU_CMD_GET_HOST_ID), ctrnet.handle, ip_out, NULL);
 }
 
 Result ctrnet_socket(Handle* socket_out)
 {
-   ipc_command_t* command = IPCCMD_New(0x2);
+   ipc_command_t* command = IPCCMD_New(SOCU_CMD_SOCKET);
 
    IPCCMD_Add_Param(command, AF_INET);
    IPCCMD_Add_Param(command, SOCK_STREAM);
@@ -80,7 +96,7 @@ Result ctrnet_socket(Handle* socket_out)
 
 Result ctrnet_bind(Handle socket, ctrnet_sockaddr_in_t* addr)
 {
-   ipc_command_t* command = IPCCMD_New(0x5);
+   ipc_command_t* command = IPCCMD_New(SOCU_CMD_BIND);
 
    IPCCMD_Add_Param(command, socket);
    IPCCMD_Add_Param(command, sizeof(*addr));
@@ -92,7 +108,7 @@ Result ctrnet_bind(Handle socket, ctrnet_sockaddr_in_t* addr)
 
 Result ctrnet_listen(Handle socket, int max_connections)
 {
-   ipc_command_t* command = IPCCMD_New(0x3);
+   ipc_command_t* command = IPCCMD_New(SOCU_CMD_LISTEN);
    IPCCMD_Add_Param(command, socket);
    IPCCMD_Add_Param(command, max_connections);
    IPCCMD_Add_Desc_CurProcessHandle(command);
@@ -102,7 +118,7 @@ Result ctrnet_listen(Handle socket, int max_connections)
 
 Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t* client_addr)
 {
-   ipc_command_t* command = IPCCMD_New(0x4);
+   ipc_command_t* command = IPCCMD_New(SOCU_CMD_ACCEPT);
    IPCCMD_Add_Param(command, socket);
    IPCCMD_Add_Param(command, sizeof(*client_addr));
    IPCCMD_Add_Desc_CurProcessHandle(command);
@@ -113,14 +129,14 @@ Result ctrnet_accept(Handle socket, Handle* client_handle, ctrnet_sockaddr_in_t*
 
 Result ctrnet_recv(Handle socket, void* buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t* src_addr)
 {
-   ipc_command_t* command = IPCCMD_New(len < CTRNET_TRANSFER_SIZE_THRESHOLD ? 0x8 : 0x7);
+   ipc_command_t* command = IPCCMD_New(len < SOCU_TRANSFER_SIZE_THRESHOLD ? SOCU_CMD_RECV_NOMAP : SOCU_CMD_RECV_MAP);
    IPCCMD_Add_Param(command, socket);
    IPCCMD_Add_Param(command, len);
    IPCCMD_Add_Param(command, flags);
    IPCCMD_Add_Param(command, sizeof(*src_addr));
    IPCCMD_Add_Desc_CurProcessHandle(command);
 
-   if (len < CTRNET_TRANSFER_SIZE_THRESHOLD)
+   if (len < SOCU_TRANSFER_SIZE_THRESHOLD)
    {
       IPCCMD_Set_StaticBuffer(command, 0, buf, len);
       IPCCMD_Set_StaticBuffer(command, 1, src_addr, sizeof(*src_addr));
@@ -136,14 +152,14 @@ Result ctrnet_recv(Handle socket, void* buf, size_t len, ctrnet_transfer_flags f
 
 Result ctrnet_send(Handle socket, void* buf, size_t len, ctrnet_transfer_flags flags, ctrnet_sockaddr_in_t* dst_addr)
 {
-   ipc_command_t* command = IPCCMD_New(len < CTRNET_TRANSFER_SIZE_THRESHOLD ? 0xA : 0x9);
+   ipc_command_t* command = IPCCMD_New(len < SOCU_TRANSFER_SIZE_THRESHOLD ? SOCU_CMD_SEND_NOMAP : SOCU_CMD_SEND_MAP);
    IPCCMD_Add_Param(command, socket);
    IPCCMD_Add_Param(command, len);
    IPCCMD_Add_Param(command, flags);
    IPCCMD_Add_Param(command, sizeof(*dst_addr));
    IPCCMD_Add_Desc_CurProcessHandle(command);
 
-   if (len < CTRNET_TRANSFER_SIZE_THRESHOLD)
+   if (len < SOCU_TRANSFER_SIZE_THRESHOLD)
    {
       IPCCMD_Add_Desc_StaticBuffer(command, 2, buf, len);
       IPCCMD_Add_Desc_StaticBuffer(command, 1, dst_addr, sizeof(*dst_addr));
@@ -159,7 +175,7 @@ Result ctrnet_send(Handle socket, void* buf, size_t len, ctrnet_transfer_flags f
 
 Result ctrnet_close(Handle socket)
 {
-   ipc_command_t* command = IPCCMD_New(0xB);
+   ipc_command_t* command = IPCCMD_New(SOCU_CMD_CLOSE);
    IPCCMD_Add_Param(command, socket);
    IPCCMD_Add_Desc_CurProcessHandle(command);
 
@@ -168,7 +184,7 @@ Result ctrnet_close(Handle socket)
 
 Result ctrnet_getsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32* optlen)
 {
-   ipc_command_t* command = IPCCMD_New(0x11);
+   ipc_command_t* command = IPCCMD_New(SOCU_CMD_GET_SOCK_OPT);
    IPCCMD_Add_Param(command, socket);
    IPCCMD_Add_Param(command, level);
    IPCCMD_Add_Param(command, optname);
@@ -181,7 +197,7 @@ Result ctrnet_getsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32
 
 Result ctrnet_setsockopt(Handle socket, u32 level, u32 optname, u32* optval, u32 optlen)
 {
-   ipc_command_t* command = IPCCMD_New(0x12);
+   ipc_command_t* command = IPCCMD_New(SOCU_CMD_SET_SOCK_OPT);
    IPCCMD_Add_Param(command, socket);
    IPCCMD_Add_Param(command, level);
    IPCCMD_Add_Param(command, optname);

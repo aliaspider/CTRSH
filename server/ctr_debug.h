@@ -8,8 +8,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 void wait_for_input(void);
-void dump_result_value(Result val);
+
 #ifdef __cplusplus
 }
 #endif
