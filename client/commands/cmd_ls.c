@@ -11,7 +11,7 @@
 
 option_t command_ls_options[] =
 {
-   {'l', NULL, "detailed view"},
+   {'l', false, NULL, "detailed view"},
    {0}
 };
 

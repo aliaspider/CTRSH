@@ -61,7 +61,7 @@ void execute_command(int sockfd, char* line)
             while (*ptr && !isspace(*ptr))
                ptr++;
 
-            *ptr = '\0';
+            *ptr++ = '\0';
          }
 
          cmd_argv[cmd_argc] = NULL;

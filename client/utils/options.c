@@ -5,6 +5,7 @@
 #include <getopt.h>
 #include <assert.h>
 #include "options.h"
+#include "common.h"
 
 char** parse_options(int argc, char **argv, option_t* options)
 {
@@ -29,6 +30,8 @@ char** parse_options(int argc, char **argv, option_t* options)
       struct option* l_ptr = long_opts;
       while(opt->id)
       {
+         assert(opt->id != 'h');
+         assert(opt->id != '?');
          *s_ptr++ = opt->id;
          if(opt->has_arg)
             *s_ptr++ = ':';
@@ -46,32 +49,42 @@ char** parse_options(int argc, char **argv, option_t* options)
       *s_ptr = 0;
       memset(l_ptr, 0, sizeof(*l_ptr));
 
-      int long_ind;
       int opt_id;
-      while ((opt_id = getopt_long(argc, argv, short_opts, long_opts, &long_ind)) != -1)
+      while ((opt_id = getopt_long(argc, argv, short_opts, long_opts, NULL)) != -1)
       {
-         assert(opt_id = options[long_ind].id);
-         if(options[long_ind].has_arg)
+         int i = 0;
+         while(i < count && options[i].id != opt_id)
+            i++;
+
+         if(i == count)
+         {
+            free(vals);
+            return NULL;
+         }
+
+         rl_printf("found option :%c\n", opt_id);
+         if(options[i].has_arg)
          {
             if(!optarg)
             {
-               printf("required argument missing for option %c", options[long_ind].id);
-               if(options[long_ind].id_long)
-                  printf("[%s]", options[long_ind].id_long);
+               printf("required argument missing for option %c", options[i].id);
+               if(options[i].id_long)
+                  printf("[%s]", options[i].id_long);
                printf("\n");
+               free(vals);
                return NULL;
             }
-            vals[long_ind] = optarg;
+            vals[i] = optarg;
          }
          else
-            vals[long_ind] = "";
+            vals[i] = "";
       }
    }
 
    argc -= optind;
    argv += optind;
-   memcpy(vals[count], argv, argc * sizeof(*vals));
-   vals[argc] = NULL;
+   memcpy(vals + count, argv, argc * sizeof(*vals));
+   vals[count + argc] = NULL;
 
    return vals;
 }
