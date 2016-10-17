@@ -6,8 +6,8 @@
 #include <unistd.h>
 #include <wchar.h>
 #include "ctrsh.h"
-#include "ctr_debug.h"
-#include "ctr_net.h"
+#include "ctr/ctr_debug.h"
+#include "ctr/ctr_net.h"
 #include "commands.h"
 
 u32 __stacksize__ = 0x100000;

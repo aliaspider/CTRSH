@@ -8,33 +8,48 @@
 #include "utils/file_list.h"
 #include "../server/server_cmd.h"
 
-void command_ls(int sockfd, int argc, char* const* argv)
+
+option_t command_ls_options[] =
+{
+   {'l', NULL, "detailed view"},
+   {0}
+};
+
+typedef struct
+{
+   const char* detailed_view;
+//   const char* paths[];
+   const char* path;
+}ls_options_t;
+
+void command_ls(int sockfd, char* const* options)
 {
    int i, j;
+   ls_options_t* opt = (ls_options_t*)options;
 
-   bool detailed_view = false;
-   int opt;
+//   bool detailed_view = false;
+//   int opt;
 
-   while ((opt = getopt(argc, argv, "lh")) != -1)
-   {
-      switch (opt)
-      {
-      case 'l':
-         detailed_view = true;
-         break;
+//   while ((opt = getopt(argc, argv, "lh")) != -1)
+//   {
+//      switch (opt)
+//      {
+//      case 'l':
+//         detailed_view = true;
+//         break;
 
-      case '?':
-      case 'h':
-         printf("\nUsage: ls [options]\n\n");
-         printf("   -l   detailed view\n");
-         printf("   -h   print help\n");
-         printf("\n");
-         return;
+//      case '?':
+//      case 'h':
+//         printf("\nUsage: ls [options]\n\n");
+//         printf("   -l   detailed view\n");
+//         printf("   -h   print help\n");
+//         printf("\n");
+//         return;
 
-      default:
-         break;
-      }
-   }
+//      default:
+//         break;
+//      }
+//   }
 
    DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DIRENT));
    uint32_t buffer_size;
@@ -53,17 +68,11 @@ void command_ls(int sockfd, int argc, char* const* argv)
       bytes_read += ret;
    }
 
-#if 1
-   FILE* fp = fopen("dirent_test.bin", "wb");
-   fwrite(buffer, 1, buffer_size, fp);
-   fclose(fp);
-#endif
-
    filelist_t* filelist = filelist_new((ctrsh_dirent*)buffer);
    filelist_sort(filelist);
    filelist_sort_dir(filelist);
 
-   if (detailed_view)
+   if (opt->detailed_view)
       filelist_print_detailed(filelist);
    else
       filelist_print(filelist);

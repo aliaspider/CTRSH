@@ -9,8 +9,8 @@ WCHAR_T_OVERRIDE        = 1
 
 OBJS :=
 OBJS += main.o
-OBJS += ctr_net.o
-OBJS += ctr_error.o
+OBJS += ctr/ctr_net.o
+OBJS += ctr/ctr_error.o
 OBJS += commands.o
 OBJS += ctrsh.o
 

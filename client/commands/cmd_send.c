@@ -7,7 +7,7 @@
 #include "commands.h"
 #include "../server/server_cmd.h"
 
-void command_send(int sockfd, int argc, char* const* argv)
+void command_send(int sockfd, char* const* options)
 {
    int i;
    FILE* rgui_fp;
@@ -16,11 +16,6 @@ void command_send(int sockfd, int argc, char* const* argv)
       void* buffer;
       size_t size;
    } rgui;
-
-   printf("executing send with arguments:\n");
-
-   for (i = 0; i < argc; i++)
-      printf("%s\n", argv[i]);
 
    DEBUG_ERROR(rgui_fp = fopen("./rgui.dat", "rb"));
    fseek(rgui_fp, 0, SEEK_END);

@@ -58,6 +58,7 @@ char* ctrsh_completion_commands(const char* text, int id)
 static char** ctrsh_completion_function(const char* str, int start, int end)
 {
    int i;
+   (void)end;
    for(i = 0; i < start; i++)
       if(!isspace(rl_line_buffer[i]))
          return rl_completion_matches(str, rl_filename_completion_function);
@@ -91,7 +92,8 @@ int main(int argc, char* argv[])
    ctrsh.server_ip = CTR_IP;
    ctrsh.server_port = CTR_PORT;
 
-   while ((opt = getopt(argc, argv, "hvsa:p:")) != -1)
+   char* _3dsx_path = NULL;
+   while ((opt = getopt(argc, argv, "hvsa:p:x:")) != -1)
    {
       switch (opt)
       {
@@ -101,6 +103,10 @@ int main(int argc, char* argv[])
 
       case 's':
          strncpy(ctrsh.history_file, optarg, sizeof(ctrsh.history_file));
+         break;
+
+      case 'x':
+         _3dsx_path = optarg;
          break;
 
       case 'a':
@@ -154,9 +160,25 @@ int main(int argc, char* argv[])
 
    rl_attempted_completion_function = ctrsh_completion_function;
 
+//   rl_set_prompt("test:/> ");
+   stdout_thread_running = true;
+
    //    rl_callback_handler_install("", cli_handler);
    //    rl_basic_word_break_characters = "\t\n ";
    //    rl_completer_word_break_characters = "\t\n ";
+
+   if(_3dsx_path)
+   {
+      char _3dslink_cmd[PATH_MAX];
+
+      snprintf(_3dslink_cmd, sizeof(_3dslink_cmd), "3dslink -a %d.%d.%d.%d %s",
+               ((uint8_t*)&ctrsh.server_ip)[0], ((uint8_t*)&ctrsh.server_ip)[1],
+               ((uint8_t*)&ctrsh.server_ip)[2], ((uint8_t*)&ctrsh.server_ip)[3],
+            _3dsx_path);
+      while (system(_3dslink_cmd))
+         sleep(1);
+   }
+
    ctrsh.running = true;
 
    while (ctrsh.running)
@@ -189,7 +211,6 @@ int main(int argc, char* argv[])
 //      printf("connected to %i.%i.%i.%i:%i\n", ((uint8_t*)&serv_addr.sin_addr.s_addr)[0], ((uint8_t*)&serv_addr.sin_addr.s_addr)[1],
 //             ((uint8_t*)&serv_addr.sin_addr.s_addr)[2], ((uint8_t*)&serv_addr.sin_addr.s_addr)[3],  ntohs(serv_addr.sin_port));
 
-      stdout_thread_running = true;
       pthread_t stdout_thread;
       pthread_create(&stdout_thread, NULL, stdout_thread_entry, &serv_addr);
 
@@ -218,62 +239,7 @@ int main(int argc, char* argv[])
             add_history(line);
 
          printf("executing command : %s\n", line);
-         command_t* cmd = ctrsh_commands;
-
-         while (cmd->name)
-         {
-            if (!strncmp(line, cmd->name, strlen(cmd->name)))
-            {
-               int cmd_argc = 1;
-               char* ptr = line;
-
-               while (*ptr)
-               {
-                  if (isspace(*ptr))
-                  {
-                     *ptr = '\0';
-                     ptr++;
-
-                     while (isspace(*ptr))
-                        ptr++;
-
-                     if (*ptr)
-                        cmd_argc++;
-                  }
-
-                  ptr++;
-               }
-
-               int idx;
-               char* cmd_argv[cmd_argc + 1];
-               ptr = line;
-
-               for (idx = 0; idx < cmd_argc; idx++)
-               {
-                  while (isspace(*ptr))
-                     ptr++;
-
-                  cmd_argv[idx] = ptr;
-
-                  while (*ptr)
-                     ptr++;
-
-                  while (!*ptr)
-                     ptr++;
-               }
-
-               cmd_argv[cmd_argc] = NULL;
-               optind = 1;
-               optopt = 0;
-               optarg = NULL;
-
-               cmd->fn(sockfd, cmd_argc, cmd_argv);
-               break;
-            }
-
-            cmd++;
-         }
-
+         execute_command(sockfd, line);
          free(line_buffer);
       }
 

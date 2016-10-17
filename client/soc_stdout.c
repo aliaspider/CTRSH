@@ -16,7 +16,6 @@
 #include <readline/history.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <getopt.h>
 
 #include "../server/server_cmd.h"
 #include "common.h"

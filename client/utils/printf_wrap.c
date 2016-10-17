@@ -17,7 +17,7 @@ int rl_printf(const char* fmt, ...)
 int rl_vprintf(const char* fmt, va_list va)
 {
    char spaces[256];
-   int count = strlen(rl_prompt) + strlen(rl_line_buffer);
+   int count = strlen(rl_prompt) + rl_end;
 
    if (count > 254)
       count = 254;
@@ -26,5 +26,7 @@ int rl_vprintf(const char* fmt, va_list va)
    spaces[count] = '\0';
    printf("\r%s\r", spaces);
    vprintf(fmt, va);
-   printf("%s%s", rl_prompt, rl_line_buffer);
+   puts(rl_prompt);
+   if(rl_end && rl_line_buffer)
+      puts(rl_line_buffer);
 }

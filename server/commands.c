@@ -7,8 +7,8 @@
 
 #include "commands.h"
 #include "ctrsh.h"
-#include "ctr_net.h"
-#include "ctr_debug.h"
+#include "ctr/ctr_net.h"
+#include "ctr/ctr_debug.h"
 
 static Result ctrsh_send_from_buffer(Handle socket, void* buffer, u32 size, ctrnet_sockaddr_in_t* addr)
 {

@@ -1,6 +1,6 @@
 
-
 TARGET = ctrsh
+
 OBJS :=
 OBJS += main.o
 OBJS += commands.o
@@ -12,6 +12,7 @@ OBJS += commands/cmd_quit.o
 OBJS += commands/cmd_send.o
 OBJS += utils/file_list.o
 OBJS += utils/printf_wrap.o
+OBJS += utils/options.o
 
 CFLAGS += -g -O0 -Werror=implicit-function-declaration
 CFLAGS += -I.
