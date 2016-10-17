@@ -16,6 +16,8 @@ int rl_printf(const char* fmt, ...)
 
 int rl_vprintf(const char* fmt, va_list va)
 {
+   return vprintf(fmt, va);
+
    char spaces[256];
    int count = strlen(rl_prompt) + rl_end;
 
