@@ -63,6 +63,7 @@ static Result ctrsh_recv_to_file(Handle socket, Handle file, ctrnet_sockaddr_in_
          return res;
 
       remaining -= res;
+      printf("recieving\n");
    }
    free(buffer);
 
@@ -100,6 +101,7 @@ static Result ctrsh_recv_to_buffer(Handle socket, void** buffer, ctrnet_sockaddr
          return res;
 
       recv_size += res;
+      printf("recieving\n");
    }
 
    end_tick = svcGetSystemTick();

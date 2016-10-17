@@ -49,27 +49,6 @@
 #define KTRQ  "\x1B[96m"
 
 
-int server_printf(const char* fmt, ...)
-{
-   va_list va;
-   char buffer[4096];
-   sprintf(buffer, KLBL"[Server] %s"KNRM, fmt);
-   va_start(va, fmt);
-   rl_vprintf(buffer, va);
-   va_end(va);
-}
-
-
-static int l_printf(const char* fmt, ...)
-{
-   va_list va;
-   char buffer[4096];
-   sprintf(buffer, KLBL"%s"KNRM, fmt);
-   va_start(va, fmt);
-   rl_vprintf(buffer, va);
-   va_end(va);
-}
-
 
 bool stdout_thread_running;
 void* stdout_thread_entry(void* args)
@@ -90,28 +69,30 @@ void* stdout_thread_entry(void* args)
    }
    while (ret < 0);
 
-   l_printf("stdout thread connected\n");
+   rl_printf_ex(KLBL, NULL, "stdout thread connected\n");
 
 
    while(stdout_thread_running)
    {
       char buffer[4096];
-      if(recv(sockfd, buffer, sizeof(buffer), MSG_DONTWAIT) < 0)
+      int ret = recv(sockfd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+      if( ret < 0)
       {
          if((errno != EAGAIN) && (errno != EWOULDBLOCK))
             break;
          usleep(100000);
       }
       else
-         server_printf(buffer);
+      {
+         buffer[ret] = 0;
+         rl_printf_ex(KLBL, "[Server] ", buffer);
+      }
 
    }
 
-
    close(sockfd);
 
-
-   l_printf("stdout thread finished\n");
+   rl_printf_ex(KLBL, NULL, "stdout thread connected\n");
 
    return NULL;
 }

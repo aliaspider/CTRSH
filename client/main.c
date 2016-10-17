@@ -236,10 +236,11 @@ int main(int argc, char* argv[])
             line++;
 
          if (line && *line)
+         {
             add_history(line);
-
-         printf("executing command : %s\n", line);
-         execute_command(sockfd, line);
+            printf("executing command : %s\n", line);
+            execute_command(sockfd, line);
+         }
          free(line_buffer);
       }
 

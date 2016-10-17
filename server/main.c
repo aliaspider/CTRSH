@@ -2,9 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <malloc.h>
+#include <string.h>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <wchar.h>
+#include <sys/iosupport.h>
 #include "ctrsh.h"
 #include "ctr/ctr_debug.h"
 #include "ctr/ctr_net.h"
@@ -34,6 +36,30 @@ void wait_for_input(void)
       svcSleepThread(1000000);
    }
 }
+Handle client_stdout;
+ctrnet_sockaddr_in_t client_stdout_addr;
+
+ssize_t con_write(struct _reent *r,int fd,const char *ptr, size_t len) ;
+ssize_t net_write(struct _reent *r, int fd, const char *ptr, size_t len) {
+
+   if (client_stdout)
+   {
+      DEBUG_ERROR(ctrnet_send(client_stdout, (void*)ptr, len, 0, &client_stdout_addr));
+   }
+
+   return con_write(r, fd, ptr, len);
+}
+
+static const devoptab_t devoptab_net = {
+	"netprint",
+	0,
+	NULL,
+	NULL,
+	net_write,
+	NULL,
+	NULL,
+	NULL
+};
 
 int main(int argc, char** argv)
 {
@@ -41,6 +67,11 @@ int main(int argc, char** argv)
    gfxSet3D(false);
    gfxSetDoubleBuffering(GFX_TOP, false);
    consoleInit(GFX_BOTTOM, NULL);
+   client_stdout = 0;
+   memset(&client_stdout_addr, 0, sizeof(client_stdout_addr));
+   devoptab_list[STD_OUT] = &devoptab_net;
+   devoptab_list[STD_ERR] = &devoptab_net;
+
    printf("CTRSH\n");
    printf("Press Start to exit.\n");
 
@@ -48,10 +79,8 @@ int main(int argc, char** argv)
 
    Handle socket;
    Handle client;
-   Handle client_stdout;
    ctrnet_sockaddr_in_t host_addr = {0};
    ctrnet_sockaddr_in_t client_addr = {0};
-   ctrnet_sockaddr_in_t client_stdout_addr = {0};
 
 //   u32 frames = 0;
 
@@ -106,6 +135,9 @@ int main(int argc, char** argv)
    ctrsh_wait_command(client, &client_addr);
 
    ctrnet_close(client);
+   ctrnet_close(client_stdout);
+   client_stdout = 0;
+   memset(&client_stdout_addr, 0, sizeof(client_stdout_addr));
    ctrnet_close(socket);
    ctrnet_exit();
    FSUSER_CloseArchive(ctrsh.sdmc);
