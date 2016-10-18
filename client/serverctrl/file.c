@@ -2,6 +2,7 @@
 #include "utils/file_list.h"
 #include "common.h"
 #include "server_ctrl.h"
+#include "server_internal.h"
 
 filelist_t* server_get_filelist(const char* path)
 {

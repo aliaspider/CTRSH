@@ -7,6 +7,6 @@
 void command_exit(char* const* options)
 {
    int i;
-   DEBUG_ERROR(send_command(CTRSH_COMMAND_EXIT));
+   server_exit();
    ctrsh.server.running = false;
 }

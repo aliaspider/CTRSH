@@ -9,11 +9,7 @@
 
 void command_put(char* const* options)
 {
-   int i;
-   DEBUG_ERROR(send_command(CTRSH_COMMAND_PUT));
-   uint32_t filesize = 0x1000000;
-   DEBUG_ERROR(send_data(&filesize, 4));
-   void* buffer =  malloc(filesize);
-   DEBUG_ERROR(send_data(buffer, filesize));
+   void* buffer =  malloc(0x1000000);
+   server_put(buffer, 0x1000000);
    free(buffer);
 }

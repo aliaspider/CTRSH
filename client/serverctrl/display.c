@@ -1,5 +1,7 @@
 #include "common.h"
 #include "server_ctrl.h"
+#include "server_internal.h"
+#include "server_internal.h"
 
 void server_display_image(const void* buffer, uint32_t size)
 {
