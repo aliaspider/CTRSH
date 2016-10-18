@@ -127,13 +127,14 @@ int main(int argc, char* argv[])
          return 1;
       }
    }
+
    if(opts->port)
    {
-      ctrsh.server_port = atoi(optarg);
+      ctrsh.server_port = atoi(opts->port);
 
-      if (ctrsh.server_port  > 0xFFFF)
+      if (!ctrsh.server_port || ctrsh.server_port  > 0xFFFF)
       {
-         rl_printf_error("invalid port number : %s\n", optarg);
+         rl_printf_error("invalid port number : %s\n", opts->port);
          return 1;
       }
    }
