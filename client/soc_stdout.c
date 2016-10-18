@@ -21,33 +21,21 @@
 #include "common.h"
 #include "utils/file_list.h"
 
+int rl_printf_server(const char* fmt, ...)
+{
+   va_list va;
+   va_start(va, fmt);
+   rl_vprintf_ex(KGRY, "[Server] ", fmt, va);
+   va_end(va);
+}
 
-#define IP2INT(a, b, c, d) (a | (b << 8) | (c << 16) | (d <<24))
-#define DEBUG_ERROR(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno)); exit(0);}}while(0)
-#define DEBUG_ERROR_stay(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno));}}while(0)
-#define DEBUG_VAR(X) printf( #X" : 0x%08lX\n", (uint32_t)(X))
-
-//#define CTR_IP          IP2INT(10, 42, 0, 237)
-#define CTR_IP          IP2INT(192, 168, 2, 240)
-#define CTR_PORT        12000
-#define HISTORY_FILE    ".ctrsh.hist"
-
-#define KNRM  "\x1B[0m"
-#define KRED  "\x1B[31m"
-#define KGRN  "\x1B[32m"
-#define KYEL  "\x1B[33m"
-#define KBLU  "\x1B[34m"
-#define KMAG  "\x1B[35m"
-#define KCYN  "\x1B[36m"
-#define KWHT  "\x1B[37m"
-#define KGRY  "\x1B[90m"
-#define KLRD  "\x1B[91m"
-#define KLGR  "\x1B[92m"
-#define KLYL  "\x1B[93m"
-#define KLBL  "\x1B[94m"
-#define KLPR  "\x1B[95m"
-#define KTRQ  "\x1B[96m"
-
+int rl_printf_server_info(const char* fmt, ...)
+{
+   va_list va;
+   va_start(va, fmt);
+   rl_vprintf_color(KLGR, fmt, va);
+   va_end(va);
+}
 
 
 bool stdout_thread_running;
@@ -69,7 +57,7 @@ void* stdout_thread_entry(void* args)
    }
    while (ret < 0);
 
-   rl_printf_ex(KLBL, NULL, "stdout thread connected\n");
+   rl_printf_server_info("stdout thread connected\n");
 
 
    while(stdout_thread_running)
@@ -82,17 +70,17 @@ void* stdout_thread_entry(void* args)
             break;
          usleep(100000);
       }
-      else
+      else if(ret)
       {
          buffer[ret] = 0;
-         rl_printf_ex(KLBL, "[Server] ", buffer);
+         rl_printf_server(buffer);
       }
 
    }
 
    close(sockfd);
 
-   rl_printf_ex(KLBL, NULL, "stdout thread connected\n");
+   rl_printf_info("stdout thread disconnected\n");
 
    return NULL;
 }

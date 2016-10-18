@@ -25,7 +25,7 @@ void command_send(int sockfd, char* const* options)
    fread(rgui.buffer, 1, rgui.size, rgui_fp);
    fclose(rgui_fp);
 
-   printf("sending file\n");
+   rl_printf_info("sending file\n");
    DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DISPLAY_IMAGE));
    DEBUG_ERROR(write(sockfd, &rgui.size, 4));
    DEBUG_ERROR(write(sockfd, rgui.buffer, rgui.size));

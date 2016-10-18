@@ -5,7 +5,7 @@
 
 #include "common.h"
 
-static int rl_vprintf(const char* fmt, va_list va)
+void rl_vprintf(const char* fmt, va_list va)
 {
    int rl_point_org;
    char* rl_text_org = NULL;
@@ -31,7 +31,35 @@ static int rl_vprintf(const char* fmt, va_list va)
    }
 }
 
-static int rl_vprintf_ex(const char* color, const char* prefix, const char* fmt, va_list va)
+void rl_vprintf_color(const char* color, const char* fmt, va_list va)
+{
+   int new_len = strlen(fmt) + strlen(color) + strlen(KNRM);
+   char* fmt_new = malloc (new_len + 1);
+
+   char* dst = fmt_new;
+   const char* src;
+
+   src = color;
+   while(*src)
+      *dst++ = *src++;
+
+   src = fmt;
+   while(*src)
+      *dst++ = *src++;
+
+   src = KNRM;
+   while(*src)
+      *dst++ = *src++;
+
+   *dst = 0;
+
+   rl_vprintf(fmt_new, va);
+
+   free(fmt_new);
+
+}
+
+void rl_vprintf_ex(const char* color, const char* prefix, const char* fmt, va_list va)
 {
    int new_len = strlen(fmt);
    if(color)
@@ -84,7 +112,7 @@ static int rl_vprintf_ex(const char* color, const char* prefix, const char* fmt,
 
 }
 
-int rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...)
+void rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...)
 {
    va_list va;
    va_start(va, fmt);
@@ -93,12 +121,37 @@ int rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...)
 
 }
 
-int rl_printf(const char* fmt, ...)
+void rl_printf(const char* fmt, ...)
 {
    va_list va;
    va_start(va, fmt);
-//   rl_vprintf(fmt, va);
-   rl_vprintf_ex(KLGR, NULL, fmt, va);
+   rl_vprintf(fmt, va);
+   va_end(va);
+}
+
+void rl_printf_debug(const char* fmt, ...)
+{
+#ifndef NDEBUG
+   va_list va;
+   va_start(va, fmt);
+   rl_vprintf_color(KMAG, fmt, va);
+   va_end(va);
+#endif
+}
+
+void rl_printf_info(const char* fmt, ...)
+{
+   va_list va;
+   va_start(va, fmt);
+   rl_vprintf_color(KLBL, fmt, va);
+   va_end(va);
+}
+
+void rl_printf_error(const char* fmt, ...)
+{
+   va_list va;
+   va_start(va, fmt);
+   rl_vprintf_color(KLRD, fmt, va);
    va_end(va);
 }
 

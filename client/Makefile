@@ -1,5 +1,6 @@
 
 TARGET = ctrsh
+DEBUG = 1
 
 OBJS :=
 OBJS += main.o
@@ -14,10 +15,19 @@ OBJS += utils/file_list.o
 OBJS += utils/printf_wrap.o
 OBJS += utils/options.o
 
-CFLAGS += -g -O0 -Werror=implicit-function-declaration
+ifeq ($(DEBUG), 1)
+   CFLAGS += -g -O0 -DDEBUG
+else
+   CFLAGS += -O3 -DNDEBUG
+endif
+
+LDFLAGS += $(CFLAGS)
+
+CFLAGS += -Werror=implicit-function-declaration
 CFLAGS += -I.
-LDFLAGS += -g -O0
+
 LIBS += -lreadline -lpthread
+
 all: $(TARGET)
 
 $(TARGET): $(OBJS)

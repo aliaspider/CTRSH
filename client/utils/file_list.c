@@ -153,13 +153,13 @@ void filelist_print(filelist_t* list)
    {
       for (i = 0; (i < columns) && (id < list->size); i++, id += col_entries[i])
       {
-         printf("%s%s" KNRM, filename_col[list->files[id].type], list->files[id].name);
+         rl_printf("%s%s" KNRM, filename_col[list->files[id].type], list->files[id].name);
 
          for (k = 0; k < (col_widths[i] + col_spacing - list->files[id].mbslen); k++)
             putchar(' ');
       }
 
-      printf("\n");
+      rl_printf("\n");
    }
 
 }
@@ -172,8 +172,8 @@ void filelist_print_detailed(filelist_t* list)
    for (i = 0; i < list->size; i++)
    {
       if(list->files[i].type == FILE_TYPE_DIRECTORY)
-         printf(" ----------  %s%s \n" KNRM, filename_col[list->files[i].type], list->files[i].name);
+         rl_printf(" ----------  %s%s \n" KNRM, filename_col[list->files[i].type], list->files[i].name);
       else
-         printf(" %10lli  %s%s \n" KNRM, list->files[i].size, filename_col[list->files[i].type], list->files[i].name);
+         rl_printf(" %10lli  %s%s \n" KNRM, list->files[i].size, filename_col[list->files[i].type], list->files[i].name);
    }
 }

@@ -85,7 +85,6 @@ static void ctrsh_print_version(void)
 
 int main(int argc, char* argv[])
 {
-
    int opt;
 
    ctrsh.history_file[0] = '\0';
@@ -115,7 +114,7 @@ int main(int argc, char* argv[])
 
          if (ctrsh.server_ip == -1)
          {
-            printf("invalid ip : %s\n", optarg);
+            rl_printf_error("invalid ip : %s\n", optarg);
             return 1;
          }
 
@@ -127,7 +126,7 @@ int main(int argc, char* argv[])
 
          if (ctrsh.server_port  > 0xFFFF)
          {
-            printf("invalid port number : %s\n", optarg);
+            rl_printf_error("invalid port number : %s\n", optarg);
             return 1;
          }
 
@@ -196,7 +195,7 @@ int main(int argc, char* argv[])
       serv_addr.sin_port = htons(ctrsh.server_port);
       int ret;
 
-      printf("connecting to %i.%i.%i.%i:%i\n", ((uint8_t*)&ctrsh.server_ip)[0], ((uint8_t*)&ctrsh.server_ip)[1],
+      rl_printf_info("connecting to %i.%i.%i.%i:%i\n", ((uint8_t*)&ctrsh.server_ip)[0], ((uint8_t*)&ctrsh.server_ip)[1],
              ((uint8_t*)&ctrsh.server_ip)[2], ((uint8_t*)&ctrsh.server_ip)[3], ctrsh.server_port);
 
       do
@@ -208,7 +207,7 @@ int main(int argc, char* argv[])
             usleep(10000);
       }
       while (ret < 0);
-//      printf("connected to %i.%i.%i.%i:%i\n", ((uint8_t*)&serv_addr.sin_addr.s_addr)[0], ((uint8_t*)&serv_addr.sin_addr.s_addr)[1],
+//      rl_printf_info("connected to %i.%i.%i.%i:%i\n", ((uint8_t*)&serv_addr.sin_addr.s_addr)[0], ((uint8_t*)&serv_addr.sin_addr.s_addr)[1],
 //             ((uint8_t*)&serv_addr.sin_addr.s_addr)[2], ((uint8_t*)&serv_addr.sin_addr.s_addr)[3],  ntohs(serv_addr.sin_port));
 
       pthread_t stdout_thread;
@@ -238,7 +237,7 @@ int main(int argc, char* argv[])
          if (line && *line)
          {
             add_history(line);
-            printf("executing command : %s\n", line);
+            rl_printf_debug("executing command : %s\n", line);
             execute_command(sockfd, line);
          }
          free(line_buffer);

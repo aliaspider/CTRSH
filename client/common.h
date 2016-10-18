@@ -13,9 +13,9 @@
 
 
 #define IP2INT(a, b, c, d) (a | (b << 8) | (c << 16) | (d <<24))
-#define DEBUG_ERROR(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno)); exit(0);}}while(0)
-#define DEBUG_ERROR_stay(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){printf("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno));}}while(0)
-#define DEBUG_VAR(X) printf( #X" : 0x%08lX\n", (uint32_t)(X))
+#define DEBUG_ERROR(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){rl_printf_error("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno)); exit(0);}}while(0)
+#define DEBUG_ERROR_stay(X) do{int res_ = (int)(intptr_t)(X); if(res_ < 0){rl_printf_error("error %i @%s (%s:%d).\n%s\n", res_, __FUNCTION__, __FILE__, __LINE__,strerror(errno));}}while(0)
+#define DEBUG_VAR(X) rl_printf_info( #X" : 0x%08lX\n", (uint32_t)(X))
 
 
 #define KNRM  "\x1B[0m"
@@ -53,8 +53,15 @@ extern ctrsh_t ctrsh;
 
 void* stdout_thread_entry(void* args);
 
-int rl_printf(const char* fmt, ...);
-int rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...);
+void rl_printf(const char* fmt, ...);
+void rl_printf_debug(const char* fmt, ...);
+void rl_printf_info(const char* fmt, ...);
+void rl_printf_error(const char* fmt, ...);
+void rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...);
+
+void rl_vprintf(const char* fmt, va_list va);
+void rl_vprintf_color(const char* color, const char* fmt, va_list va);
+void rl_vprintf_ex(const char* color, const char* prefix, const char* fmt, va_list va);
 
 extern bool stdout_thread_running;
 

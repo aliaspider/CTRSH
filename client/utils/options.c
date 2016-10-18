@@ -23,7 +23,7 @@ char** parse_options(int argc, char **argv, option_t* options)
 #endif
    optopt = 0;
    optarg = NULL;
-//   opterr = 0;
+   opterr = 0;
 
    char **vals = calloc(count + argc, sizeof(*vals));
 
@@ -80,10 +80,10 @@ char** parse_options(int argc, char **argv, option_t* options)
       {
          if(!optarg)
          {
-            printf("required argument missing for option %c", options[i].id);
+            rl_printf_error("required argument missing for option %c", options[i].id);
             if(options[i].id_long)
-               printf("[%s]", options[i].id_long);
-            printf("\n");
+               rl_printf_error("[%s]", options[i].id_long);
+            rl_printf_error("\n");
             goto error;
          }
          vals[i] = optarg;
@@ -100,15 +100,15 @@ char** parse_options(int argc, char **argv, option_t* options)
    return vals;
 
 unknown_option:
-   rl_printf("unknown option :%c\n", optopt);
+   rl_printf_error("unknown option :%c\n", optopt);
 
 print_help:
-   rl_printf("usage : %s\n", argv[0]);
+   rl_printf_info("usage : %s\n", argv[0]);
    if(options)
    {
       int i;
       for(i = 0; i < count; i++)
-         rl_printf("-%c:%s%10s%s\n", options[i].id,
+         rl_printf_info("-%c:%s%10s%s\n", options[i].id,
                    options[i].id_long?", ":"  ",
                    options[i].id_long? options[i].id_long: "",
                    options[i].help);
