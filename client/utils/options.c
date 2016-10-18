@@ -16,9 +16,14 @@ char** parse_options(int argc, char **argv, option_t* options)
    while(options && options[count].id)
       count++;
 
+#ifdef __GLIBC__
+   optind = 0;
+#else
    optind = 1;
+#endif
    optopt = 0;
    optarg = NULL;
+//   opterr = 0;
 
    char **vals = calloc(count + argc, sizeof(*vals));
 
@@ -49,7 +54,7 @@ char** parse_options(int argc, char **argv, option_t* options)
    *s_ptr++ = ':';
    *s_ptr = 0;
    l_ptr->name = "help";
-   l_ptr->has_arg = 2;
+   l_ptr->has_arg = optional_argument;
    l_ptr->flag = NULL;
    l_ptr->val = 'h';
    l_ptr++;
