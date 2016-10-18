@@ -5,23 +5,21 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
 #include <netdb.h>
 #include <errno.h>
 #include <sys/cdefs.h>
 #include <limits.h>
 #include <readline/readline.h>
 #include <readline/history.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #include <getopt.h>
-#include <pthread.h>
+#include <arpa/inet.h>
 
 #include "common.h"
 #include "commands.h"
+#include "serverctrl/server_ctrl.h"
 #include "utils/file_list.h"
+#include "utils/c_str.h"
 
 #define CTR_IP          IP2INT(10, 42, 0, 237)
 //#define CTR_IP          IP2INT(192, 168, 2, 240)
@@ -29,13 +27,6 @@
 #define HISTORY_FILE    ".ctrsh.hist"
 
 ctrsh_t ctrsh;
-
-typedef struct
-{
-   ctrsh_dirent** entries;
-   int count;
-} ctrsh_dirent_list_t;
-
 
 char* ctrsh_completion_commands(const char* text, int id);
 
@@ -52,7 +43,7 @@ static char** ctrsh_completion_function(const char* str, int start, int end)
 }
 
 
-option_t main_options_defs[] =
+option_def_t main_options_defs[] =
 {
    {'a', true,  "address", "server address"},
    {'p', true,  "port",    "server port"},
@@ -125,7 +116,6 @@ int main(int argc, char* argv[])
 
    const char* home_path = getenv("HOME");
 
-
    if (!ctrsh.history_file[0])
    {
       if (home_path)
@@ -136,85 +126,23 @@ int main(int argc, char* argv[])
 
    read_history(ctrsh.history_file);
    history_set_pos(history_length);
-
-
    rl_attempted_completion_function = ctrsh_completion_function;
 
-//   rl_set_prompt("test:/> ");
-   stdout_thread_running = true;
-
-   //    rl_callback_handler_install("", cli_handler);
-   //    rl_basic_word_break_characters = "\t\n ";
-   //    rl_completer_word_break_characters = "\t\n ";
-
    if(opts->_3dsx)
-   {
-      char _3dslink_cmd[PATH_MAX];
-
-      snprintf(_3dslink_cmd, sizeof(_3dslink_cmd), "3dslink -a %d.%d.%d.%d %s",
-               ((uint8_t*)&ctrsh.server.ip)[0], ((uint8_t*)&ctrsh.server.ip)[1],
-               ((uint8_t*)&ctrsh.server.ip)[2], ((uint8_t*)&ctrsh.server.ip)[3],
-            opts->_3dsx);
-      while (system(_3dslink_cmd))
-         sleep(1);
-   }
+      run_server_3dsx(opts->_3dsx);
 
    ctrsh.running = true;
 
    while (ctrsh.running)
    {
-      ctrsh.server.running = true;
-      struct sockaddr_in serv_addr = {0};
-      DEBUG_ERROR(ctrsh.server.soc = socket(AF_INET, SOCK_STREAM, 0));
-      int sockopt_val = 0x40000;
-      setsockopt(ctrsh.server.soc, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
-      setsockopt(ctrsh.server.soc, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
+      server_connect();
 
-      serv_addr.sin_family = AF_INET;
-      serv_addr.sin_addr.s_addr = ctrsh.server.ip;
-      serv_addr.sin_port = htons(ctrsh.server.port);
-      int ret;
-
-      rl_printf_info("connecting to %i.%i.%i.%i:%i\n", ((uint8_t*)&ctrsh.server.ip)[0], ((uint8_t*)&ctrsh.server.ip)[1],
-             ((uint8_t*)&ctrsh.server.ip)[2], ((uint8_t*)&ctrsh.server.ip)[3], ctrsh.server.port);
-
-      do
-      {
-         ret = connect(ctrsh.server.soc, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
-
-         //          DEBUG_ERROR_stay(ret);
-         if (ret < 0)
-            usleep(10000);
-      }
-      while (ret < 0);
-//      rl_printf_info("connected to %i.%i.%i.%i:%i\n", ((uint8_t*)&serv_addr.sin_addr.s_addr)[0], ((uint8_t*)&serv_addr.sin_addr.s_addr)[1],
-//             ((uint8_t*)&serv_addr.sin_addr.s_addr)[2], ((uint8_t*)&serv_addr.sin_addr.s_addr)[3],  ntohs(serv_addr.sin_port));
-
-      pthread_t stdout_thread;
-      pthread_create(&stdout_thread, NULL, stdout_thread_entry, &serv_addr);
-
-      while (ctrsh.server.running)
+      while (ctrsh.server.connected)
       {
          char* line_buffer = readline("test:/> ");
-         char* line = line_buffer;
-         char* last = line;
+         char* line = clean_whitespace(line_buffer);
 
-         while (*line)
-         {
-            if (!isspace(*line))
-               last = line + 1;
-
-            line++;
-         }
-
-         *last = '\0';
-
-         line = line_buffer;
-
-         while (isspace(*line))
-            line++;
-
-         if (line && *line)
+         if (*line)
          {
             add_history(line);
             rl_printf_debug("executing command : %s\n", line);
@@ -223,9 +151,6 @@ int main(int argc, char* argv[])
          free(line_buffer);
       }
 
-      stdout_thread_running = false;
-      pthread_join(stdout_thread, NULL);
-      close(ctrsh.server.soc);
       sleep(1);
    }
 

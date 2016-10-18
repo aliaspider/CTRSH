@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-
+#include <netinet/in.h>
 
 
 #define IP2INT(a, b, c, d) (a | (b << 8) | (c << 16) | (d <<24))
@@ -43,9 +43,11 @@ typedef struct
 {
    char history_file[PATH_MAX];
    bool running;   
+   pthread_t stdout_thread;
    struct
    {
-      bool running;
+      struct sockaddr_in addr;
+      bool connected;
       int ip;
       int port;
       int soc;
@@ -66,9 +68,6 @@ typedef struct
 }ctrsh_t;
 
 extern ctrsh_t ctrsh;
-
-
-void* stdout_thread_entry(void* args);
 
 void rl_printf(const char* fmt, ...);
 void rl_printf_info(const char* fmt, ...);

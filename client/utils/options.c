@@ -7,10 +7,10 @@
 #include "options.h"
 #include "common.h"
 
-char** parse_options(int argc, char **argv, option_t* options)
+char** parse_options(int argc, char **argv, option_def_t* options)
 {
 
-   option_t* opt = options;
+   option_def_t* opt = options;
    int count = 0;
 
    while(options && options[count].id)

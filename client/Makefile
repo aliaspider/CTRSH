@@ -6,6 +6,7 @@ OBJS :=
 OBJS += main.o
 OBJS += commands.o
 OBJS += soc_stdout.o
+OBJS += utils/c_str.o
 OBJS += utils/file_list.o
 OBJS += utils/printf_wrap.o
 OBJS += utils/options.o

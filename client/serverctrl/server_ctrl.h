@@ -6,6 +6,10 @@
 #include "common.h"
 
 
+void run_server_3dsx(const char* _3dsx_path);
+
+void server_connect(void);
+
 void server_exit(void);
 
 void server_display_image(const void* buffer, uint32_t size);

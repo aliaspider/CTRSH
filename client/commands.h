@@ -9,7 +9,7 @@ typedef struct
 {
    const char* name;
    command_fn_t fn;
-   option_t* options;
+   option_def_t* options;
 } command_t;
 
 void execute_command(char* line);

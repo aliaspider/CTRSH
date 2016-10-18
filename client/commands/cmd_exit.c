@@ -6,9 +6,7 @@
 
 static void command_exit_entry(char* const* options)
 {
-   int i;
    server_exit();
-   ctrsh.server.running = false;
 }
 
 
