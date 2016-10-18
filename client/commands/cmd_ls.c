@@ -9,7 +9,7 @@
 #include "serverctrl/server_ctrl.h"
 
 
-option_t command_ls_options[] =
+static option_t command_ls_options[] =
 {
    {'l', false, NULL, "detailed view"},
    {0}
@@ -21,7 +21,7 @@ typedef struct
    const char* path;
 }ls_options_t;
 
-void command_ls(char* const* options)
+static void command_ls_entry(char* const* options)
 {
    int i, j;
    ls_options_t* opt = (ls_options_t*)options;
@@ -36,3 +36,9 @@ void command_ls(char* const* options)
    filelist_free(filelist);
 }
 
+command_t command_ls =
+{
+   "ls",
+   command_ls_entry,
+   command_ls_options
+};

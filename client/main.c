@@ -37,23 +37,7 @@ typedef struct
 } ctrsh_dirent_list_t;
 
 
-char* ctrsh_completion_commands(const char* text, int id)
-{
-   static int index = 0;
-
-   if (id == 0)
-      index = 0;
-
-   while (ctrsh_commands[index].name)
-   {
-      if (!strncmp(text, ctrsh_commands[index].name, strlen(text)))
-         return strdup(ctrsh_commands[index++].name);
-
-      index++;
-   }
-
-   return NULL;
-}
+char* ctrsh_completion_commands(const char* text, int id);
 
 static char** ctrsh_completion_function(const char* str, int start, int end)
 {

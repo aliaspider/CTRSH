@@ -4,9 +4,10 @@
 #include <stdbool.h>
 
 #include "common.h"
+#include "commands.h"
 #include "serverctrl/server_ctrl.h"
 
-void command_send(char* const* options)
+static void command_send_entry(char* const* options)
 {
    int i;
    FILE* rgui_fp;
@@ -26,3 +27,10 @@ void command_send(char* const* options)
    free(buffer);
 
 }
+
+
+command_t command_send = {
+   "send",
+   command_send_entry,
+   NULL
+};

@@ -5,31 +5,29 @@
 #include "commands.h"
 #include "common.h"
 
-extern option_t command_ls_options[];
+extern command_t command_exit;
+extern command_t command_ls;
+extern command_t command_put;
+extern command_t command_quit;
+extern command_t command_send;
 
-void command_exit(char* const* options);
-void command_ls(char* const* options);
-void command_put(char* const* options);
-void command_quit(char* const* options);
-void command_send(char* const* options);
-
-command_t ctrsh_commands[] =
+command_t* ctrsh_commands[] =
 {
-   {"exit", command_exit, NULL},
-   {"ls", command_ls, command_ls_options},
-   {"put", command_put, NULL},
-   {"quit", command_quit, NULL},
-   {"send", command_send, NULL},
-   {NULL}
+   &command_exit,
+   &command_ls,
+   &command_put,
+   &command_quit,
+   &command_send,
+   NULL
 };
 
 void execute_command(char* line)
 {
-   command_t* cmd = ctrsh_commands;
+   command_t** cmd = ctrsh_commands;
 
-   while (cmd->name)
+   while (*cmd)
    {
-      if (!strncmp(line, cmd->name, strlen(cmd->name)))
+      if (!strncmp(line, (*cmd)->name, strlen((*cmd)->name)))
       {
          int cmd_argc = 0;
          char* ptr = line;
@@ -66,10 +64,10 @@ void execute_command(char* line)
          }
 
          cmd_argv[cmd_argc] = NULL;
-         char **vals = parse_options(cmd_argc, cmd_argv, cmd->options);
+         char **vals = parse_options(cmd_argc, cmd_argv, (*cmd)->options);
          if(vals)
          {
-            cmd->fn(vals);
+            (*cmd)->fn(vals);
             free(vals);
          }
          return;
@@ -84,4 +82,23 @@ void execute_command(char* line)
    *ptr = 0;
    rl_printf_error("unknown command : %s\n", line);
 
+}
+
+
+char* ctrsh_completion_commands(const char* text, int id)
+{
+   static int index = 0;
+
+   if (id == 0)
+      index = 0;
+
+   while (ctrsh_commands[index])
+   {
+      if (!strncmp(text, ctrsh_commands[index]->name, strlen(text)))
+         return strdup(ctrsh_commands[index++]->name);
+
+      index++;
+   }
+
+   return NULL;
 }

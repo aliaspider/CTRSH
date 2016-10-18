@@ -12,8 +12,6 @@ typedef struct
    option_t* options;
 } command_t;
 
-extern command_t ctrsh_commands[];
-
 void execute_command(char* line);
 
 #endif // COMMANDS_H

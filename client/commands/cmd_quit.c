@@ -4,7 +4,7 @@
 #include "commands.h"
 #include "serverctrl/server_ctrl.h"
 
-void command_quit(char* const* options)
+void command_quit_entry(char* const* options)
 {
    int i;
    server_exit();
@@ -12,3 +12,10 @@ void command_quit(char* const* options)
    ctrsh.running = false;
 
 }
+
+command_t command_quit =
+{
+   "quit",
+   command_quit_entry,
+   NULL
+};
