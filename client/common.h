@@ -52,9 +52,9 @@ extern ctrsh_t ctrsh;
 
 
 void* stdout_thread_entry(void* args);
+
 int rl_printf(const char* fmt, ...);
 int rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...);
-int rl_vprintf(const char* fmt, va_list va);
 
 extern bool stdout_thread_running;
 

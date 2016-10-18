@@ -5,35 +5,33 @@
 
 #include "common.h"
 
-
-int rl_printf(const char* fmt, ...)
+static int rl_vprintf(const char* fmt, va_list va)
 {
-   va_list va;
-   va_start(va, fmt);
-   rl_vprintf(fmt, va);
-   va_end(va);
-}
+   int rl_point_org;
+   char* rl_text_org = NULL;
 
-int rl_vprintf(const char* fmt, va_list va)
-{
-   int rl_point_org = rl_point;
-   char* rl_text_org = rl_copy_text(0, rl_end);
-
-   rl_save_prompt();
-   rl_replace_line("", 0);
-   rl_redisplay();
+   if ((rl_readline_state & RL_STATE_READCMD) > 0)
+   {
+      rl_text_org = rl_copy_text(0, rl_end);
+      rl_point_org = rl_point;
+      rl_save_prompt();
+      rl_replace_line("", 0);
+      rl_redisplay();
+   }
 
    vprintf(fmt, va);
 
-   rl_restore_prompt();
-   rl_replace_line(rl_text_org, 0);
-   rl_point = rl_point_org;
-   rl_redisplay();
-
-   free(rl_text_org);
+   if(rl_text_org)
+   {
+      rl_restore_prompt();
+      rl_replace_line(rl_text_org, 0);
+      rl_point = rl_point_org;
+      rl_redisplay();
+      free(rl_text_org);
+   }
 }
 
-int rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...)
+static int rl_vprintf_ex(const char* color, const char* prefix, const char* fmt, va_list va)
 {
    int new_len = strlen(fmt);
    if(color)
@@ -80,11 +78,27 @@ int rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...)
    if(color)
       strcpy(dst, KNRM);
 
-
-   va_list va;
-   va_start(va, fmt);
    rl_vprintf(fmt_new, va);
-   va_end(va);
 
    free(fmt_new);
+
 }
+
+int rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...)
+{
+   va_list va;
+   va_start(va, fmt);
+   rl_vprintf_ex(color, prefix, fmt, va);
+   va_end(va);
+
+}
+
+int rl_printf(const char* fmt, ...)
+{
+   va_list va;
+   va_start(va, fmt);
+//   rl_vprintf(fmt, va);
+   rl_vprintf_ex(KLGR, NULL, fmt, va);
+   va_end(va);
+}
+
