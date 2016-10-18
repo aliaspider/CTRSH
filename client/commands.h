@@ -3,7 +3,7 @@
 
 #include "utils/options.h"
 
-typedef void(*command_fn_t)(int sockfd, char* const* options);
+typedef void(*command_fn_t)(char* const* options);
 
 typedef struct
 {
@@ -14,6 +14,6 @@ typedef struct
 
 extern command_t ctrsh_commands[];
 
-void execute_command(int sockfd, char* line);
+void execute_command(char* line);
 
 #endif // COMMANDS_H

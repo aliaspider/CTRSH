@@ -17,6 +17,7 @@ filelist_t* filelist_new(ctrsh_dirent* first)
    filelist_t* out = malloc(sizeof(filelist_t));
    ctrsh_dirent* dir = first;
    out->size = 0;
+   out->buffer = first;
 
    while (dir->entry_size)
    {
@@ -56,6 +57,7 @@ filelist_t* filelist_new(ctrsh_dirent* first)
 void filelist_free(filelist_t* list)
 {
    free(list->files);
+   free(list->buffer);
    free(list);
 }
 

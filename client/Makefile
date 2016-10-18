@@ -6,14 +6,17 @@ OBJS :=
 OBJS += main.o
 OBJS += commands.o
 OBJS += soc_stdout.o
+OBJS += utils/file_list.o
+OBJS += utils/printf_wrap.o
+OBJS += utils/options.o
+OBJS += serverctrl/display.o
+OBJS += serverctrl/file.o
+OBJS += serverctrl/misc.o
 OBJS += commands/cmd_exit.o
 OBJS += commands/cmd_ls.o
 OBJS += commands/cmd_put.o
 OBJS += commands/cmd_quit.o
 OBJS += commands/cmd_send.o
-OBJS += utils/file_list.o
-OBJS += utils/printf_wrap.o
-OBJS += utils/options.o
 
 ifeq ($(DEBUG), 1)
    CFLAGS += -g -O0 -DDEBUG

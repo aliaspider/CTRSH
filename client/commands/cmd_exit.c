@@ -2,11 +2,11 @@
 
 #include "common.h"
 #include "commands.h"
-#include "../server/server_cmd.h"
+#include "serverctrl/server_ctrl.h"
 
-void command_exit(int sockfd, char* const* options)
+void command_exit(char* const* options)
 {
    int i;
-   DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_EXIT));
-   ctrsh.server_running = false;
+   DEBUG_ERROR(send_command(CTRSH_COMMAND_EXIT));
+   ctrsh.server.running = false;
 }

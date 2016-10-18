@@ -4,31 +4,25 @@
 #include <stdbool.h>
 
 #include "common.h"
-#include "commands.h"
-#include "../server/server_cmd.h"
+#include "serverctrl/server_ctrl.h"
 
-void command_send(int sockfd, char* const* options)
+void command_send(char* const* options)
 {
    int i;
    FILE* rgui_fp;
-   struct
-   {
-      void* buffer;
-      size_t size;
-   } rgui;
+   void* buffer;
+   size_t size;
 
    DEBUG_ERROR(rgui_fp = fopen("./rgui.dat", "rb"));
    fseek(rgui_fp, 0, SEEK_END);
-   rgui.size = ftell(rgui_fp);
-   rgui.buffer = malloc(rgui.size);
+   size = ftell(rgui_fp);
+   buffer = malloc(size);
    fseek(rgui_fp, 0, SEEK_SET);
-   fread(rgui.buffer, 1, rgui.size, rgui_fp);
+   fread(buffer, 1, size, rgui_fp);
    fclose(rgui_fp);
 
-   rl_printf_info("sending file\n");
-   DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DISPLAY_IMAGE));
-   DEBUG_ERROR(write(sockfd, &rgui.size, 4));
-   DEBUG_ERROR(write(sockfd, rgui.buffer, rgui.size));
-   free(rgui.buffer);
+   server_display_image(buffer, size);
+
+   free(buffer);
 
 }

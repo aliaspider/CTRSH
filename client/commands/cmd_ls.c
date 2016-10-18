@@ -6,7 +6,7 @@
 #include "common.h"
 #include "commands.h"
 #include "utils/file_list.h"
-#include "../server/server_cmd.h"
+#include "serverctrl/server_ctrl.h"
 
 
 option_t command_ls_options[] =
@@ -21,31 +21,12 @@ typedef struct
    const char* path;
 }ls_options_t;
 
-void command_ls(int sockfd, char* const* options)
+void command_ls(char* const* options)
 {
    int i, j;
    ls_options_t* opt = (ls_options_t*)options;
 
-   DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_DIRENT));
-   uint32_t buffer_size;
-   DEBUG_ERROR(read(sockfd, &buffer_size, 4));
-
-   if (!buffer_size)
-      return;
-
-   uint8_t* buffer = malloc(buffer_size);
-   ssize_t bytes_read = 0;
-
-   while (bytes_read < buffer_size)
-   {
-      ssize_t ret = read(sockfd, buffer + bytes_read, buffer_size - bytes_read);
-      DEBUG_ERROR(ret);
-      bytes_read += ret;
-   }
-
-   filelist_t* filelist = filelist_new((ctrsh_dirent*)buffer);
-   filelist_sort(filelist);
-   filelist_sort_dir(filelist);
+   filelist_t* filelist = server_get_filelist(NULL);
 
    if (opt->detailed_view)
       filelist_print_detailed(filelist);
@@ -53,7 +34,5 @@ void command_ls(int sockfd, char* const* options)
       filelist_print(filelist);
 
    filelist_free(filelist);
-   free(buffer);
-
 }
 

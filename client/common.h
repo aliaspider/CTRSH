@@ -42,15 +42,27 @@
 typedef struct
 {
    char history_file[PATH_MAX];
-   bool running;
-   bool server_running;
-   int server_ip;
-   int server_port;
-   const char* color_error;
-   const char* color_info;
+   bool running;   
+   struct
+   {
+      bool running;
+      int ip;
+      int port;
+      int soc;
+      int soc_stdout;
+   }server;
+
+   struct
+   {
+      struct
+      {
+         const char* error;
+         const char* info;
 #ifndef NDEBUG
-   const char* color_debug;
+         const char* debug;
 #endif
+      }colors;
+   }console;
 }ctrsh_t;
 
 extern ctrsh_t ctrsh;
@@ -69,11 +81,5 @@ void rl_vprintf_color(const char* color, const char* fmt, va_list va);
 void rl_vprintf_ex(const char* color, const char* prefix, const char* fmt, va_list va);
 
 extern bool stdout_thread_running;
-
-
-static inline int send_command(int socket, uint32_t command_id)
-{
-   return write(socket, &command_id, 4);
-}
 
 #endif // COMMON_H

@@ -7,11 +7,11 @@
 
 extern option_t command_ls_options[];
 
-void command_exit(int sockfd, char* const* options);
-void command_ls(int sockfd, char* const* options);
-void command_put(int sockfd, char* const* options);
-void command_quit(int sockfd, char* const* options);
-void command_send(int sockfd, char* const* options);
+void command_exit(char* const* options);
+void command_ls(char* const* options);
+void command_put(char* const* options);
+void command_quit(char* const* options);
+void command_send(char* const* options);
 
 command_t ctrsh_commands[] =
 {
@@ -23,7 +23,7 @@ command_t ctrsh_commands[] =
    {NULL}
 };
 
-void execute_command(int sockfd, char* line)
+void execute_command(char* line)
 {
    command_t* cmd = ctrsh_commands;
 
@@ -69,7 +69,7 @@ void execute_command(int sockfd, char* line)
          char **vals = parse_options(cmd_argc, cmd_argv, cmd->options);
          if(vals)
          {
-            cmd->fn(sockfd, vals);
+            cmd->fn(vals);
             free(vals);
          }
          return;

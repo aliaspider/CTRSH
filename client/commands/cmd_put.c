@@ -5,15 +5,15 @@
 
 #include "common.h"
 #include "commands.h"
-#include "../server/server_cmd.h"
+#include "serverctrl/server_ctrl.h"
 
-void command_put(int sockfd, char* const* options)
+void command_put(char* const* options)
 {
    int i;
-   DEBUG_ERROR(send_command(sockfd, CTRSH_COMMAND_PUT));
+   DEBUG_ERROR(send_command(CTRSH_COMMAND_PUT));
    uint32_t filesize = 0x1000000;
-   DEBUG_ERROR(write(sockfd, &filesize, 4));
+   DEBUG_ERROR(send_data(&filesize, 4));
    void* buffer =  malloc(filesize);
-   DEBUG_ERROR(write(sockfd, buffer, filesize));
+   DEBUG_ERROR(send_data(buffer, filesize));
    free(buffer);
 }

@@ -25,6 +25,7 @@ typedef struct
 typedef struct
 {
    int size;
+   void* buffer;
    filename_t* files;
 }filelist_t;
 

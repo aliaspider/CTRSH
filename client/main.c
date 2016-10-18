@@ -92,12 +92,12 @@ int main(int argc, char* argv[])
    opterr = 0;
 
    ctrsh.history_file[0] = '\0';
-   ctrsh.server_ip = CTR_IP;
-   ctrsh.server_port = CTR_PORT;
-   ctrsh.color_info = KNRM;
-   ctrsh.color_error = KLRD;
+   ctrsh.server.ip = CTR_IP;
+   ctrsh.server.port = CTR_PORT;
+   ctrsh.console.colors.info = KNRM;
+   ctrsh.console.colors.error = KLRD;
 #ifndef NDEBUG
-   ctrsh.color_debug = KMAG;
+   ctrsh.console.colors.debug = KMAG;
 #endif
 
 
@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
    if(!opts)
       return 0;
 
-   ctrsh.color_info = KLBL;
+   ctrsh.console.colors.info = KLBL;
 
    if(opts->version)
    {
@@ -119,9 +119,9 @@ int main(int argc, char* argv[])
 
    if(opts->address)
    {
-      ctrsh.server_ip = inet_addr(opts->address);
+      ctrsh.server.ip = inet_addr(opts->address);
 
-      if (ctrsh.server_ip == -1)
+      if (ctrsh.server.ip == -1)
       {
          rl_printf_error("invalid ip : %s\n", opts->address);
          return 1;
@@ -130,9 +130,9 @@ int main(int argc, char* argv[])
 
    if(opts->port)
    {
-      ctrsh.server_port = atoi(opts->port);
+      ctrsh.server.port = atoi(opts->port);
 
-      if (!ctrsh.server_port || ctrsh.server_port  > 0xFFFF)
+      if (!ctrsh.server.port || ctrsh.server.port  > 0xFFFF)
       {
          rl_printf_error("invalid port number : %s\n", opts->port);
          return 1;
@@ -168,8 +168,8 @@ int main(int argc, char* argv[])
       char _3dslink_cmd[PATH_MAX];
 
       snprintf(_3dslink_cmd, sizeof(_3dslink_cmd), "3dslink -a %d.%d.%d.%d %s",
-               ((uint8_t*)&ctrsh.server_ip)[0], ((uint8_t*)&ctrsh.server_ip)[1],
-               ((uint8_t*)&ctrsh.server_ip)[2], ((uint8_t*)&ctrsh.server_ip)[3],
+               ((uint8_t*)&ctrsh.server.ip)[0], ((uint8_t*)&ctrsh.server.ip)[1],
+               ((uint8_t*)&ctrsh.server.ip)[2], ((uint8_t*)&ctrsh.server.ip)[3],
             opts->_3dsx);
       while (system(_3dslink_cmd))
          sleep(1);
@@ -179,25 +179,24 @@ int main(int argc, char* argv[])
 
    while (ctrsh.running)
    {
-      ctrsh.server_running = true;
-      int sockfd,  n;
+      ctrsh.server.running = true;
       struct sockaddr_in serv_addr = {0};
-      DEBUG_ERROR(sockfd = socket(AF_INET, SOCK_STREAM, 0));
+      DEBUG_ERROR(ctrsh.server.soc = socket(AF_INET, SOCK_STREAM, 0));
       int sockopt_val = 0x40000;
-      setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
-      setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
+      setsockopt(ctrsh.server.soc, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
+      setsockopt(ctrsh.server.soc, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
 
       serv_addr.sin_family = AF_INET;
-      serv_addr.sin_addr.s_addr = ctrsh.server_ip;
-      serv_addr.sin_port = htons(ctrsh.server_port);
+      serv_addr.sin_addr.s_addr = ctrsh.server.ip;
+      serv_addr.sin_port = htons(ctrsh.server.port);
       int ret;
 
-      rl_printf_info("connecting to %i.%i.%i.%i:%i\n", ((uint8_t*)&ctrsh.server_ip)[0], ((uint8_t*)&ctrsh.server_ip)[1],
-             ((uint8_t*)&ctrsh.server_ip)[2], ((uint8_t*)&ctrsh.server_ip)[3], ctrsh.server_port);
+      rl_printf_info("connecting to %i.%i.%i.%i:%i\n", ((uint8_t*)&ctrsh.server.ip)[0], ((uint8_t*)&ctrsh.server.ip)[1],
+             ((uint8_t*)&ctrsh.server.ip)[2], ((uint8_t*)&ctrsh.server.ip)[3], ctrsh.server.port);
 
       do
       {
-         ret = connect(sockfd, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
+         ret = connect(ctrsh.server.soc, (struct sockaddr*)&serv_addr, sizeof(serv_addr));
 
          //          DEBUG_ERROR_stay(ret);
          if (ret < 0)
@@ -210,7 +209,7 @@ int main(int argc, char* argv[])
       pthread_t stdout_thread;
       pthread_create(&stdout_thread, NULL, stdout_thread_entry, &serv_addr);
 
-      while (ctrsh.server_running)
+      while (ctrsh.server.running)
       {
          char* line_buffer = readline("test:/> ");
          char* line = line_buffer;
@@ -235,14 +234,14 @@ int main(int argc, char* argv[])
          {
             add_history(line);
             rl_printf_debug("executing command : %s\n", line);
-            execute_command(sockfd, line);
+            execute_command(line);
          }
          free(line_buffer);
       }
 
       stdout_thread_running = false;
       pthread_join(stdout_thread, NULL);
-      close(sockfd);
+      close(ctrsh.server.soc);
       sleep(1);
    }
 

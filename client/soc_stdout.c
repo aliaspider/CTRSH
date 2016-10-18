@@ -42,15 +42,15 @@ bool stdout_thread_running;
 void* stdout_thread_entry(void* args)
 {
    struct sockaddr* serv_addr = args;
-   int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+   ctrsh.server.soc_stdout = socket(AF_INET, SOCK_STREAM, 0);
    int sockopt_val = 0x40000;
-   setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
-   setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
+   setsockopt(ctrsh.server.soc_stdout, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
+   setsockopt(ctrsh.server.soc_stdout, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
    int ret;
 
    do
    {
-      ret = connect(sockfd, serv_addr, sizeof(struct sockaddr_in));
+      ret = connect(ctrsh.server.soc_stdout, serv_addr, sizeof(struct sockaddr_in));
 
       if (ret < 0)
          usleep(10000);
@@ -63,7 +63,7 @@ void* stdout_thread_entry(void* args)
    while(stdout_thread_running)
    {
       char buffer[4096];
-      int ret = recv(sockfd, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
+      int ret = recv(ctrsh.server.soc_stdout, buffer, sizeof(buffer) - 1, MSG_DONTWAIT);
       if( ret < 0)
       {
          if((errno != EAGAIN) && (errno != EWOULDBLOCK))
@@ -78,7 +78,7 @@ void* stdout_thread_entry(void* args)
 
    }
 
-   close(sockfd);
+   close(ctrsh.server.soc_stdout);
 
    rl_printf_info("stdout thread disconnected\n");
 
