@@ -23,14 +23,14 @@ char** parse_options(int argc, char **argv, option_t* options)
 #endif
    optopt = 0;
    optarg = NULL;
-   opterr = 0;
 
    char **vals = calloc(count + argc, sizeof(*vals));
 
-   char short_opts[(count * 2) + 3 + 1];
+   char short_opts[1 + (count * 2) + 3 + 1];
    char* s_ptr = short_opts;
    struct option long_opts[count + 2];
    struct option* l_ptr = long_opts;
+   *s_ptr++ = ':';
    while(opt && opt->id)
    {
       assert(opt->id != 'h');
@@ -63,11 +63,25 @@ char** parse_options(int argc, char **argv, option_t* options)
    int opt_id;
    while ((opt_id = getopt_long(argc, argv, short_opts, long_opts, NULL)) != -1)
    {
+      rl_printf_debug("found option :%c\n", opt_id);
+
       if(opt_id == 'h')
          goto print_help;
 
+      if(opt_id == ':')
+      {
+         rl_printf_error("missing argument for option :%s\n", argv[optind - 1]);
+         goto print_help;
+      }
+
       if(!options || opt_id == '?')
-         goto unknown_option;
+      {
+         if(optopt)
+            rl_printf_error("unknown option :%c\n", optopt);
+         else
+            rl_printf_error("unknown option :%s\n", argv[optind - 1]);
+         goto print_help;
+      }
 
       int i = 0;
       while(i < count && options[i].id != opt_id)
@@ -75,7 +89,6 @@ char** parse_options(int argc, char **argv, option_t* options)
 
       assert(i < count);
 
-      rl_printf("found option :%c\n", opt_id);
       if(options[i].has_arg)
       {
          if(!optarg)
@@ -99,19 +112,34 @@ char** parse_options(int argc, char **argv, option_t* options)
 
    return vals;
 
-unknown_option:
-   rl_printf_error("unknown option :%c\n", optopt);
-
 print_help:
-   rl_printf_info("usage : %s\n", argv[0]);
+   rl_printf_info("\nusage : %s%s\n\n", argv[0], options?" [options]":"");
    if(options)
    {
       int i;
+      int longopt_len = 0;
+
       for(i = 0; i < count; i++)
-         rl_printf_info("-%c:%s%10s%s\n", options[i].id,
-                   options[i].id_long?", ":"  ",
+         if(options[i].id_long && longopt_len < strlen(options[i].id_long))
+            longopt_len = strlen(options[i].id_long);
+
+      if(longopt_len && longopt_len < strlen("help"))
+         longopt_len = strlen("help");
+
+      char fmt[128];
+      char fmt_long[128];
+      sprintf(fmt, "    -%%c%%-%is  %%s\n", longopt_len ? longopt_len + 4: 0);
+      sprintf(fmt_long, "    -%%c, --%%-%is  %%s\n", longopt_len);
+
+      for(i = 0; i < count; i++)
+         rl_printf_info(options[i].id_long? fmt_long : fmt, options[i].id,
                    options[i].id_long? options[i].id_long: "",
                    options[i].help);
+
+      rl_printf_info(longopt_len? fmt_long : fmt, 'h',
+                longopt_len? "help": "",
+                "print help");
+      rl_printf_info("\n");
    }
 
 error:

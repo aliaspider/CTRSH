@@ -2,6 +2,7 @@
 #define FILE_LIST_H
 
 #include <stdint.h>
+#include "../server/server_cmd.h"
 
 typedef enum
 {
@@ -12,7 +13,6 @@ typedef enum
    FILE_TYPE_CIA,
    FILE_TYPE_MAX,
 }file_type_enum;
-
 
 typedef struct
 {
@@ -27,15 +27,6 @@ typedef struct
    int size;
    filename_t* files;
 }filelist_t;
-
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <readline/readline.h>
-
-#include "file_list.h"
-#include "../server/server_cmd.h"
 
 filelist_t* filelist_new(ctrsh_dirent* first);
 void filelist_free(filelist_t* list);

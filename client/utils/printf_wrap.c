@@ -129,21 +129,11 @@ void rl_printf(const char* fmt, ...)
    va_end(va);
 }
 
-void rl_printf_debug(const char* fmt, ...)
-{
-#ifndef NDEBUG
-   va_list va;
-   va_start(va, fmt);
-   rl_vprintf_color(KMAG, fmt, va);
-   va_end(va);
-#endif
-}
-
 void rl_printf_info(const char* fmt, ...)
 {
    va_list va;
    va_start(va, fmt);
-   rl_vprintf_color(KLBL, fmt, va);
+   rl_vprintf_color(ctrsh.color_info, fmt, va);
    va_end(va);
 }
 
@@ -151,7 +141,16 @@ void rl_printf_error(const char* fmt, ...)
 {
    va_list va;
    va_start(va, fmt);
-   rl_vprintf_color(KLRD, fmt, va);
+   rl_vprintf_color(ctrsh.color_error, fmt, va);
    va_end(va);
 }
 
+void rl_printf_debug(const char* fmt, ...)
+{
+#ifndef NDEBUG
+   va_list va;
+   va_start(va, fmt);
+   rl_vprintf_color(ctrsh.color_debug, fmt, va);
+   va_end(va);
+#endif
+}

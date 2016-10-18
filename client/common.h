@@ -46,6 +46,11 @@ typedef struct
    bool server_running;
    int server_ip;
    int server_port;
+   const char* color_error;
+   const char* color_info;
+#ifndef NDEBUG
+   const char* color_debug;
+#endif
 }ctrsh_t;
 
 extern ctrsh_t ctrsh;
@@ -54,9 +59,9 @@ extern ctrsh_t ctrsh;
 void* stdout_thread_entry(void* args);
 
 void rl_printf(const char* fmt, ...);
-void rl_printf_debug(const char* fmt, ...);
 void rl_printf_info(const char* fmt, ...);
 void rl_printf_error(const char* fmt, ...);
+void rl_printf_debug(const char* fmt, ...);
 void rl_printf_ex(const char* color, const char* prefix, const char* fmt, ...);
 
 void rl_vprintf(const char* fmt, va_list va);

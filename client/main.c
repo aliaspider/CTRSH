@@ -67,79 +67,75 @@ static char** ctrsh_completion_function(const char* str, int start, int end)
 
 }
 
-static void ctrsh_print_help(void)
-{
-   printf("\nUsage: ctrsh [options]\n\n");
-   printf("   -a   address\n");
-   printf("   -p   port\n");
-   printf("   -v   print version\n");
-   printf("   -h   print help\n");
-   printf("\n");
-}
 
-
-static void ctrsh_print_version(void)
+option_t main_options_defs[] =
 {
-   printf("CTRSH version 0.01\n");
-}
+   {'a', true,  "address", "server address"},
+   {'p', true,  "port",    "server port"},
+   {'s', true,  "history", "set history file"},
+   {'x', true,  "3dsx",    "3dsx file to send with 3dslink before connecting (optional)"},
+   {'v', false, "version", "print version"},
+   {0}
+};
+
+typedef struct
+{
+   const char* address;
+   const char* port;
+   const char* history_file;
+   const char* _3dsx;
+   const char* version;
+}main_options_t;
 
 int main(int argc, char* argv[])
 {
-   int opt;
+   opterr = 0;
 
    ctrsh.history_file[0] = '\0';
    ctrsh.server_ip = CTR_IP;
    ctrsh.server_port = CTR_PORT;
+   ctrsh.color_info = KNRM;
+   ctrsh.color_error = KLRD;
+#ifndef NDEBUG
+   ctrsh.color_debug = KMAG;
+#endif
 
-   char* _3dsx_path = NULL;
-   while ((opt = getopt(argc, argv, "hvsa:p:x:")) != -1)
+
+   main_options_t* opts = (main_options_t*) parse_options(argc, argv,  main_options_defs);
+
+   if(!opts)
+      return 0;
+
+   ctrsh.color_info = KLBL;
+
+   if(opts->version)
    {
-      switch (opt)
+      printf("CTRSH version 0.01\n");
+      return 0;
+   }
+
+   if(opts->history_file)
+      strncpy(ctrsh.history_file, opts->history_file, sizeof(ctrsh.history_file));
+
+   if(opts->address)
+   {
+      ctrsh.server_ip = inet_addr(opts->address);
+
+      if (ctrsh.server_ip == -1)
       {
-      case 'v':
-         ctrsh_print_version();
-         return 0;
+         rl_printf_error("invalid ip : %s\n", opts->address);
+         return 1;
+      }
+   }
+   if(opts->port)
+   {
+      ctrsh.server_port = atoi(optarg);
 
-      case 's':
-         strncpy(ctrsh.history_file, optarg, sizeof(ctrsh.history_file));
-         break;
-
-      case 'x':
-         _3dsx_path = optarg;
-         break;
-
-      case 'a':
+      if (ctrsh.server_port  > 0xFFFF)
       {
-         ctrsh.server_ip = inet_addr(optarg);
-
-         if (ctrsh.server_ip == -1)
-         {
-            rl_printf_error("invalid ip : %s\n", optarg);
-            return 1;
-         }
-
-         break;
+         rl_printf_error("invalid port number : %s\n", optarg);
+         return 1;
       }
-
-      case 'p':
-         ctrsh.server_port = atoi(optarg);
-
-         if (ctrsh.server_port  > 0xFFFF)
-         {
-            rl_printf_error("invalid port number : %s\n", optarg);
-            return 1;
-         }
-
-         break;
-
-      default:
-      case '?':
-      case 'h':
-         ctrsh_print_help();
-         return 0;
-      }
-
-
    }
 
    const char* home_path = getenv("HOME");
@@ -166,14 +162,14 @@ int main(int argc, char* argv[])
    //    rl_basic_word_break_characters = "\t\n ";
    //    rl_completer_word_break_characters = "\t\n ";
 
-   if(_3dsx_path)
+   if(opts->_3dsx)
    {
       char _3dslink_cmd[PATH_MAX];
 
       snprintf(_3dslink_cmd, sizeof(_3dslink_cmd), "3dslink -a %d.%d.%d.%d %s",
                ((uint8_t*)&ctrsh.server_ip)[0], ((uint8_t*)&ctrsh.server_ip)[1],
                ((uint8_t*)&ctrsh.server_ip)[2], ((uint8_t*)&ctrsh.server_ip)[3],
-            _3dsx_path);
+            opts->_3dsx);
       while (system(_3dslink_cmd))
          sleep(1);
    }
@@ -251,5 +247,6 @@ int main(int argc, char* argv[])
 
    write_history(ctrsh.history_file);
 
+   free(opts);
    return 0;
 }

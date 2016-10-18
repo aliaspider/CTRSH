@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <string.h>
 #include "commands.h"
+#include "common.h"
 
 extern option_t command_ls_options[];
 
@@ -76,5 +77,11 @@ void execute_command(int sockfd, char* line)
 
       cmd++;
    }
+
+   char* ptr = line;
+   while (*ptr && !isspace(*ptr))
+      ptr++;
+   *ptr = 0;
+   rl_printf_error("unknown command : %s\n", line);
 
 }
