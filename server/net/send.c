@@ -12,19 +12,17 @@
 Result send_from_buffer(void* buffer, u32 size)
 {
    Result res;
-   Handle socket = ctrsh.server.client;
-   ctrnet_sockaddr_in_t* addr = &ctrsh.server.client_addr;
 
    u64 start_tick, end_tick;
 
    start_tick = svcGetSystemTick();
 
-   res = ctrnet_send(socket, &size, 4, 0, addr);
+   res = ctrnet_send(client, &size, 4, 0, &client_addr);
 
    if (res < 0)
       return res;
 
-   res = ctrnet_send(socket, buffer, size, 0, addr);
+   res = ctrnet_send(client, buffer, size, 0, &client_addr);
 
    if (res < 0)
       return res;

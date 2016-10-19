@@ -11,10 +11,17 @@
 #include "net_internal.h"
 
 
+Handle client;
+ctrnet_sockaddr_in_t client_addr;
+
+static Handle server;
+static ctrnet_sockaddr_in_t host_addr;
+
+
 void server_init(void)
 {
-   memset(&ctrsh.server.host_addr, 0, sizeof ctrsh.server.host_addr);
-   memset(&ctrsh.server.client_addr, 0, sizeof ctrsh.server.client_addr);
+   memset(&host_addr, 0, sizeof(host_addr));
+   memset(&client_addr, 0, sizeof(client_addr));
 
    //   ndmuInit();
    //   ndmuEnterExclusiveState(EXCLUSIVE_STATE_INFRASTRUCTURE);
@@ -28,42 +35,49 @@ void server_init(void)
    //   ndmuExit();
    DEBUG_ERROR(ctrnet_init(0x100000));
 
-   ctrsh.server.host_addr.size = sizeof(ctrsh.server.host_addr);
-   ctrsh.server.host_addr.family = AF_INET;
-   ctrsh.server.host_addr.port = htons(12000);
-   DEBUG_ERROR(ctrnet_gethostid(&ctrsh.server.host_addr.addr));
-   DEBUG_ERROR(ctrnet_socket(&ctrsh.server.socket));
+   host_addr.size = sizeof(host_addr);
+   host_addr.family = AF_INET;
+   host_addr.port = htons(12000);
+   DEBUG_ERROR(ctrnet_gethostid(&host_addr.addr));
+   DEBUG_ERROR(ctrnet_socket(&server));
 
    u32 sockopt_val = CTRSH_SERVER_SNDRCV_BUFFER_SIZE;
-   ctrnet_setsockopt(ctrsh.server.socket, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
-   ctrnet_setsockopt(ctrsh.server.socket, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
+   ctrnet_setsockopt(server, SOL_SOCKET, SO_RCVBUF, &sockopt_val, 4);
+   ctrnet_setsockopt(server, SOL_SOCKET, SO_SNDBUF, &sockopt_val, 4);
 
-   DEBUG_ERROR(ctrnet_bind(ctrsh.server.socket, &ctrsh.server.host_addr));
-   DEBUG_ERROR(ctrnet_listen(ctrsh.server.socket, 2));
+   DEBUG_ERROR(ctrnet_bind(server, &host_addr));
+   DEBUG_ERROR(ctrnet_listen(server, 2));
 
-   printf("IP %s\n", ctrnet_sa_to_cstr(&ctrsh.server.host_addr));
+   printf("IP %s\n", ctrnet_sa_to_cstr(&host_addr));
 
    do
    {
-      Result ret = ctrnet_accept(ctrsh.server.socket, &ctrsh.server.client, &ctrsh.server.client_addr);
+      Result ret = ctrnet_accept(server, &client, &client_addr);
       DEBUG_ERROR(ret);
+
       if (!ret)
          break;
    }
    while (aptMainLoop());
 
-   printf("Connection from %s\n", ctrnet_sa_to_cstr(&ctrsh.server.client_addr));
+   printf("Connection from %s\n", ctrnet_sa_to_cstr(&client_addr));
 
-   netprint_init();
+   netprint_init(server);
 }
 
 
-void server_deinit(void)
+void server_exit(void)
 {
    netprint_deinit();
 
-   ctrnet_close(ctrsh.server.client);
-   memset(&ctrsh.server.stdout_addr, 0, sizeof(ctrsh.server.stdout_addr));
-   ctrnet_close(ctrsh.server.socket);
+   ctrnet_close(client);
+   ctrnet_close(server);
    ctrnet_exit();
+
+
+   //   ndmuInit();
+   //   ndmuLeaveExclusiveState();
+   //   ndmuResumeScheduler();
+   //   ndmuResumeDaemons(0xF);
+   //   ndmuExit();
 }

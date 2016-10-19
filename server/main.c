@@ -10,10 +10,9 @@
 #include "ctr/ctr_net.h"
 #include "commands.h"
 #include "net/net_ctrl.h"
+#include "utils/sdmc.h"
 
 u32 __stacksize__ = 0x100000;
-
-ctrsh_t ctrsh;
 
 void wait_for_input(void)
 {
@@ -48,23 +47,17 @@ int main(int argc, char** argv)
    printf("CTRSH\n");
    printf("Press Start to exit.\n");
 
-   FSUSER_OpenArchive(&ctrsh.sdmc, ARCHIVE_SDMC, fsMakePath(PATH_ASCII,""));
 
-
+   sdmc_init();
 //   u32 frames = 0;
+
 
 
    server_init();
    ctrsh_wait_command();
-   server_deinit();
+   server_exit();
+   sdmc_exit();
 
-   FSUSER_CloseArchive(ctrsh.sdmc);
-
-//   ndmuInit();
-//   ndmuLeaveExclusiveState();
-//   ndmuResumeScheduler();
-//   ndmuResumeDaemons(0xF);
-//   ndmuExit();
 
 //   printf("\n");
 

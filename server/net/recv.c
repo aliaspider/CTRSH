@@ -14,8 +14,6 @@
 Result recv_to_file(Handle file)
 {
    Result res;
-   Handle socket = ctrsh.server.client;
-   ctrnet_sockaddr_in_t* addr = &ctrsh.server.client_addr;
 
    int file_size, remaining;
 
@@ -23,7 +21,7 @@ Result recv_to_file(Handle file)
 
    start_tick = svcGetSystemTick();
 
-   res = ctrnet_recv(socket, &file_size, 4, 0, addr);
+   res = ctrnet_recv(client, &file_size, 4, 0, &client_addr);
 
    if (res < 0)
       return res;
@@ -34,7 +32,7 @@ Result recv_to_file(Handle file)
 
    while (remaining > 0)
    {
-      res = ctrnet_recv(socket, buffer, remaining < CTRSH_FILE_BUFFER_SIZE ? remaining : CTRSH_FILE_BUFFER_SIZE, 0, addr);
+      res = ctrnet_recv(client, buffer, remaining < CTRSH_FILE_BUFFER_SIZE ? remaining : CTRSH_FILE_BUFFER_SIZE, 0, &client_addr);
 
       if (res < 0)
          return res;
@@ -56,15 +54,13 @@ Result recv_to_file(Handle file)
 Result ctrsh_recv_to_buffer(void** buffer)
 {
    Result res;
-   Handle socket = ctrsh.server.client;
-   ctrnet_sockaddr_in_t* addr = &ctrsh.server.client_addr;
 
    int file_size, recv_size;
    u64 start_tick, end_tick;
 
    start_tick = svcGetSystemTick();
 
-   res = ctrnet_recv(socket, &file_size, 4, 0, addr);
+   res = ctrnet_recv(client, &file_size, 4, 0, &client_addr);
 
    if (res < 0)
       return res;
@@ -75,7 +71,7 @@ Result ctrsh_recv_to_buffer(void** buffer)
 
    while (recv_size < file_size)
    {
-      res = ctrnet_recv(socket, (u8*)*buffer + recv_size, file_size - recv_size, 0, addr);
+      res = ctrnet_recv(client, (u8*)*buffer + recv_size, file_size - recv_size, 0, &client_addr);
 
       if (res < 0)
          return res;
@@ -92,3 +88,7 @@ Result ctrsh_recv_to_buffer(void** buffer)
    return file_size;
 }
 
+Result recv_u32(u32* out)
+{
+   return ctrnet_recv(client, out, 4, 0, &client_addr);
+}

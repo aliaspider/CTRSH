@@ -28,19 +28,19 @@ ctrsh_command_t* ctrsh_commands [] =
    NULL
 };
 
-void ctrsh_wait_command(void) // client, &client_addr
+void ctrsh_wait_command(void)
 {
    u32 command_id = 0;
 
    while (aptMainLoop())
    {
-      DEBUG_ERROR(ctrnet_recv(ctrsh.server.client, &command_id, 4, 0, &ctrsh.server.client_addr));
+      DEBUG_ERROR(recv_u32(&command_id));
 
       ctrsh_command_t** cmd = ctrsh_commands;
 
-      while(*cmd)
+      while (*cmd)
       {
-         if((*cmd)->id == command_id)
+         if ((*cmd)->id == command_id)
          {
             u64 start_tick = svcGetSystemTick();
             (*cmd)->fn();
@@ -48,9 +48,11 @@ void ctrsh_wait_command(void) // client, &client_addr
             printf("<%s> executed in %.3fms\n", (*cmd)->name, (end_tick - start_tick) / 268123.480);
             break;
          }
+
          cmd++;
       }
-      if(!*cmd)
+
+      if (!*cmd)
          printf("unknown command (%u).\n", (unsigned)command_id);
 
 

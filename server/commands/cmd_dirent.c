@@ -9,6 +9,7 @@
 
 #include "ctr/ctr_debug.h"
 #include "net/net_ctrl.h"
+#include "utils/sdmc.h"
 
 void command_dirent_entry()
 {
@@ -33,7 +34,7 @@ void command_dirent_entry()
    _Static_assert(sizeof(*dirpath_w) == 2, "wchar_t");
 
    Handle dirhandle;
-   DEBUG_ERROR(FSUSER_OpenDirectory(&dirhandle, ctrsh.sdmc, dirpath));
+   DEBUG_ERROR(FSUSER_OpenDirectory(&dirhandle, sdmc_archive, dirpath));
 
    int i;
    u32 dirent_buffer_size = 0x2000;

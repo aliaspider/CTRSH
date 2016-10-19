@@ -18,7 +18,7 @@ OBJS += net/server.o
 OBJS += net/recv.o
 OBJS += net/send.o
 OBJS += net/stdout.o
-OBJS += utils/file.o
+OBJS += utils/sdmc.o
 OBJS += ctr/ctr_net.o
 OBJS += ctr/ctr_error.o
 

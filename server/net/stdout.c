@@ -4,25 +4,32 @@
 #include "ctr/ctr_debug.h"
 #include "ctr/ctr_net.h"
 #include "common.h"
+#include "net_internal.h"
 
 static const devoptab_t* old_stdout;
 static const devoptab_t* old_stderr;
 
-ssize_t net_stdout_write(struct _reent *r, int fd, const char *ptr, size_t len) {
+static Handle stdout_soc;
+static ctrnet_sockaddr_in_t stdout_addr;
 
-   DEBUG_ERROR(ctrnet_send(ctrsh.server.stdout_soc, (void*)ptr, len, 0, &ctrsh.server.stdout_addr));
+ssize_t net_stdout_write(struct _reent* r, int fd, const char* ptr, size_t len)
+{
+
+   DEBUG_ERROR(ctrnet_send(stdout_soc, (void*)ptr, len, 0, &stdout_addr));
 
    return old_stdout->write_r(r, fd, ptr, len);
 }
 
-ssize_t net_stderr_write(struct _reent *r, int fd, const char *ptr, size_t len) {
+ssize_t net_stderr_write(struct _reent* r, int fd, const char* ptr, size_t len)
+{
 
-   DEBUG_ERROR(ctrnet_send(ctrsh.server.stdout_soc, (void*)ptr, len, 0, &ctrsh.server.stdout_addr));
+   DEBUG_ERROR(ctrnet_send(stdout_soc, (void*)ptr, len, 0, &stdout_addr));
 
    return old_stderr->write_r(r, fd, ptr, len);
 }
 
-static const devoptab_t net_stdout = {
+static const devoptab_t net_stdout =
+{
    "netstdout",
    0,
    NULL,
@@ -33,24 +40,25 @@ static const devoptab_t net_stdout = {
    NULL
 };
 
-static const devoptab_t net_stderr = {
-	"netstderr",
-	0,
-	NULL,
-	NULL,
-	net_stderr_write,
-	NULL,
-	NULL,
-	NULL
+static const devoptab_t net_stderr =
+{
+   "netstderr",
+   0,
+   NULL,
+   NULL,
+   net_stderr_write,
+   NULL,
+   NULL,
+   NULL
 };
 
-
-void netprint_init(void)
+void netprint_init(Handle socket)
 {
    do
    {
-      Result ret = ctrnet_accept(ctrsh.server.socket, &ctrsh.server.stdout_soc, &ctrsh.server.stdout_addr);
+      Result ret = ctrnet_accept(socket, &stdout_soc, &stdout_addr);
       DEBUG_ERROR(ret);
+
       if (!ret)
          break;
    }
@@ -66,5 +74,5 @@ void netprint_deinit(void)
 {
    devoptab_list[STD_OUT] = old_stdout;
    devoptab_list[STD_ERR] = old_stderr;
-   ctrnet_close(ctrsh.server.stdout_soc);
+   ctrnet_close(stdout_soc);
 }
