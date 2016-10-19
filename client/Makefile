@@ -17,6 +17,7 @@ OBJS += commands/cmd_ls.o
 OBJS += commands/cmd_put.o
 OBJS += commands/cmd_quit.o
 OBJS += commands/cmd_send.o
+OBJS += commands/cmd_test.o
 
 ifeq ($(DEBUG), 1)
    CFLAGS += -g -O0 -DDEBUG

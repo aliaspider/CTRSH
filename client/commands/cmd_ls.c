@@ -25,7 +25,7 @@ static void command_ls_entry(ls_options_t* opt)
 {
    int i, j;
 
-   filelist_t* filelist = server_get_filelist(NULL);
+   filelist_t* filelist = server_get_filelist(opt->path);
 
    if (opt->detailed_view)
       filelist_print_detailed(filelist);

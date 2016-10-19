@@ -111,7 +111,6 @@ void server_exit(void)
    server_disconnect();
 }
 
-
 void server_put(const void* buffer, uint32_t size)
 {
    DEBUG_ERROR(send_command(CTRSH_COMMAND_PUT));

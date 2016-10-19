@@ -9,10 +9,18 @@ WCHAR_T_OVERRIDE        = 1
 
 OBJS :=
 OBJS += main.o
+OBJS += commands.o
+OBJS += commands/cmd_dirent.o
+OBJS += commands/cmd_display_image.o
+OBJS += commands/cmd_exit.o
+OBJS += commands/cmd_put.o
+OBJS += net/server.o
+OBJS += net/recv.o
+OBJS += net/send.o
+OBJS += net/stdout.o
+OBJS += utils/file.o
 OBJS += ctr/ctr_net.o
 OBJS += ctr/ctr_error.o
-OBJS += commands.o
-OBJS += ctrsh.o
 
 
 APP_TITLE            = CTRSH

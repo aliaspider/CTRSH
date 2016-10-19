@@ -6,10 +6,8 @@
 
 static void command_quit_entry(char* const* options)
 {
-   int i;
    server_exit();
    ctrsh.running = false;
-
 }
 
 command_t command_quit =

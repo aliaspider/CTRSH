@@ -66,7 +66,6 @@ int main(int argc, char* argv[])
 {
    opterr = 0;
 
-   ctrsh.history_file[0] = '\0';
    ctrsh.server.ip = CTR_IP;
    ctrsh.server.port = CTR_PORT;
    ctrsh.console.colors.info = KNRM;
@@ -89,8 +88,17 @@ int main(int argc, char* argv[])
       return 0;
    }
 
-   if(opts->history_file)
+   if(opts->history_file && *opts->history_file)
       strncpy(ctrsh.history_file, opts->history_file, sizeof(ctrsh.history_file));
+   else
+   {
+      const char* home_path = getenv("HOME");
+
+      if (home_path)
+         snprintf(ctrsh.history_file, sizeof(ctrsh.history_file), "%s/" HISTORY_FILE, home_path);
+      else
+         strncpy(ctrsh.history_file, HISTORY_FILE, sizeof(ctrsh.history_file));
+   }
 
    if(opts->address)
    {
@@ -114,22 +122,14 @@ int main(int argc, char* argv[])
       }
    }
 
-   const char* home_path = getenv("HOME");
+   if(opts->_3dsx)
+      run_server_3dsx(opts->_3dsx);
 
-   if (!ctrsh.history_file[0])
-   {
-      if (home_path)
-         snprintf(ctrsh.history_file, sizeof(ctrsh.history_file), "%s/" HISTORY_FILE, home_path);
-      else
-         strncpy(ctrsh.history_file, HISTORY_FILE, sizeof(ctrsh.history_file));
-   }
+   free(opts);
 
    read_history(ctrsh.history_file);
    history_set_pos(history_length);
    rl_attempted_completion_function = ctrsh_completion_function;
-
-   if(opts->_3dsx)
-      run_server_3dsx(opts->_3dsx);
 
    ctrsh.running = true;
 
@@ -156,6 +156,5 @@ int main(int argc, char* argv[])
 
    write_history(ctrsh.history_file);
 
-   free(opts);
    return 0;
 }

@@ -6,7 +6,15 @@
 
 filelist_t* server_get_filelist(const char* path)
 {
+   uint32_t path_len;
+   if(path)
+      path_len = strlen(path) + 1;
+   else
+      path_len = 0;
+
    DEBUG_ERROR(send_command(CTRSH_COMMAND_DIRENT));
+   DEBUG_ERROR(send_data(&path_len, 4));
+   DEBUG_ERROR(send_data(path, path_len));
    uint32_t buffer_size;
    DEBUG_ERROR(recv_data(&buffer_size, 4));
 

@@ -10,6 +10,7 @@ extern command_t command_ls;
 extern command_t command_put;
 extern command_t command_quit;
 extern command_t command_send;
+extern command_t command_test;
 
 command_t* ctrsh_commands[] =
 {
@@ -18,6 +19,7 @@ command_t* ctrsh_commands[] =
    &command_put,
    &command_quit,
    &command_send,
+   &command_test,
    NULL
 };
 
