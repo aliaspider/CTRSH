@@ -11,7 +11,7 @@
 void command_put_entry()
 {
    printf("recieving file ...\n");
-   DEBUG_ERROR(ctrsh_recv_to_file(0));
+   DEBUG_ERROR(recv_to_file(0));
 }
 
 ctrsh_command_t command_put =

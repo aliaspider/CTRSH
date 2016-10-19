@@ -44,7 +44,6 @@ int main(int argc, char** argv)
    gfxSet3D(false);
    gfxSetDoubleBuffering(GFX_TOP, false);
    consoleInit(GFX_BOTTOM, NULL);
-   netprint_init();
 
    printf("CTRSH\n");
    printf("Press Start to exit.\n");

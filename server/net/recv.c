@@ -11,7 +11,7 @@
 #include "net_ctrl.h"
 #include "net_internal.h"
 
-Result ctrsh_recv_to_file(Handle file)
+Result recv_to_file(Handle file)
 {
    Result res;
    Handle socket = ctrsh.server.client;

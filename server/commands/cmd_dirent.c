@@ -81,7 +81,7 @@ void command_dirent_entry()
 
 //   DEBUG_ERROR(ctrnet_send(socket, &dirent_buffer_offset, 4, 0, addr));
 //   DEBUG_ERROR(ctrnet_send(socket, dirent_buffer, dirent_buffer_offset, 0, addr));
-   DEBUG_ERROR(ctrsh_send_from_buffer(dirent_buffer, dirent_buffer_offset));
+   DEBUG_ERROR(send_from_buffer(dirent_buffer, dirent_buffer_offset));
    DEBUG_ERROR(svcCloseHandle(dirhandle));
    free(dirent_buffer);
    free(dirpath_w_buffer);

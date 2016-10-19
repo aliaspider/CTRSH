@@ -54,27 +54,15 @@ void server_init(void)
 
    printf("Connection from %s\n", ctrnet_sa_to_cstr(&ctrsh.server.client_addr));
 
-//   memset(&ctrsh.server.stdout_addr, 0, sizeof(ctrsh.server.stdout_addr));
-
-   do
-   {
-      Result ret = ctrnet_accept(ctrsh.server.socket, &ctrsh.server.stdout_soc, &ctrsh.server.stdout_addr);
-      DEBUG_ERROR(ret);
-      if (!ret)
-         break;
-   }
-   while (aptMainLoop());
-
+   netprint_init();
 }
 
 
 void server_deinit(void)
 {
-
+   netprint_deinit();
 
    ctrnet_close(ctrsh.server.client);
-   ctrnet_close(ctrsh.server.stdout_soc);
-   ctrsh.server.stdout_soc = 0;
    memset(&ctrsh.server.stdout_addr, 0, sizeof(ctrsh.server.stdout_addr));
    ctrnet_close(ctrsh.server.socket);
    ctrnet_exit();

@@ -9,7 +9,7 @@
 #include "net_ctrl.h"
 #include "net_internal.h"
 
-Result ctrsh_send_from_buffer(void* buffer, u32 size)
+Result send_from_buffer(void* buffer, u32 size)
 {
    Result res;
    Handle socket = ctrsh.server.client;
