@@ -6,8 +6,6 @@
 void server_display_image(const void* buffer, uint32_t size)
 {
    rl_printf_debug("sending image\n");
-   DEBUG_ERROR(send_command(CTRSH_COMMAND_DISPLAY_IMAGE));
-   DEBUG_ERROR(send_data(&size, 4));
-   DEBUG_ERROR(send_data(buffer, size));
-
+   DEBUG_ERROR(server_send_command(CTRSH_COMMAND_DISPLAY_IMAGE));
+   DEBUG_ERROR(server_send_data(buffer, size));
 }

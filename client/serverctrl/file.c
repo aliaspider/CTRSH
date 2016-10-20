@@ -6,35 +6,17 @@
 
 filelist_t* server_get_filelist(const char* path)
 {
-   uint32_t path_len;
+   DEBUG_ERROR(server_send_command(CTRSH_COMMAND_DIRENT));
    if(path)
-      path_len = strlen(path) + 1;
+      DEBUG_ERROR(server_send_data(path, strlen(path)+ 1));
    else
-      path_len = 0;
+      DEBUG_ERROR(server_send_int32(0));
 
-   DEBUG_ERROR(send_command(CTRSH_COMMAND_DIRENT));
-   DEBUG_ERROR(send_data(&path_len, 4));
-   DEBUG_ERROR(send_data(path, path_len));
-   uint32_t buffer_size;
-   DEBUG_ERROR(recv_data(&buffer_size, 4));
-
-   if (!buffer_size)
-      NULL;
-
-   uint8_t* buffer = malloc(buffer_size);
-   ssize_t bytes_read = 0;
-
-   while (bytes_read < buffer_size)
-   {
-      ssize_t ret = recv_data(buffer + bytes_read, buffer_size - bytes_read);
-      DEBUG_ERROR(ret);
-      bytes_read += ret;
-   }
-
-   filelist_t* filelist = filelist_new((ctrsh_dirent*)buffer);
+   void* dirent_buffer;
+   server_recv_data(&dirent_buffer);
+   filelist_t* filelist = filelist_new(dirent_buffer);
    filelist_sort(filelist);
    filelist_sort_dir(filelist);
 
    return filelist;
-
 }

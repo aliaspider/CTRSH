@@ -6,6 +6,7 @@ BUILD_3DS               = 1
 BUILD_CIA               = 1
 LIBCTRU_NO_DEPRECATION  = 1
 WCHAR_T_OVERRIDE        = 1
+PERF_TEST		= 1
 
 OBJS :=
 OBJS += main.o
@@ -81,6 +82,10 @@ ifeq ($(DEBUG), 1)
    CFLAGS	+= -O0 -g
 else
    CFLAGS	+= -O3
+endif
+
+ifeq ($(PERF_TEST), 1)
+   CFLAGS	+= -DPERF_TEST
 endif
 
 ifeq ($(LIBCTRU_NO_DEPRECATION), 1)

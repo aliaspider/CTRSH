@@ -45,36 +45,11 @@ int main(int argc, char** argv)
    consoleInit(GFX_BOTTOM, NULL);
 
    printf("CTRSH\n");
-   printf("Press Start to exit.\n");
-
-
    sdmc_init();
-//   u32 frames = 0;
-
-
-
    server_init();
    ctrsh_wait_command();
    server_exit();
    sdmc_exit();
-
-
-//   printf("\n");
-
-//   while (aptMainLoop())
-//   {
-//      hidScanInput();
-//      u32 kDown = hidKeysDown();
-
-//      if (kDown & KEY_START)
-//         break;
-
-//      printf("frames : %u\r", (unsigned)frames++);
-//      gfxFlushBuffers();
-//      gspWaitForVBlank();
-//      fflush(stdout);
-//   }
-
 
    gfxExit();
    return 0;

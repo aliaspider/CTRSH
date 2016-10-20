@@ -107,15 +107,14 @@ static void server_disconnect(void)
 
 void server_exit(void)
 {
-   DEBUG_ERROR(send_command(CTRSH_COMMAND_EXIT));
+   DEBUG_ERROR(server_send_command(CTRSH_COMMAND_EXIT));
    server_disconnect();
 }
 
 void server_put(const void* buffer, uint32_t size)
 {
-   DEBUG_ERROR(send_command(CTRSH_COMMAND_PUT));
-   DEBUG_ERROR(send_data(&size, 4));
-   DEBUG_ERROR(send_data(buffer, size));
+   DEBUG_ERROR(server_send_command(CTRSH_COMMAND_PUT));
+   DEBUG_ERROR(server_send_data(buffer, size));
 
 }
 

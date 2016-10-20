@@ -13,9 +13,7 @@ Result send_from_buffer(void* buffer, u32 size)
 {
    Result res;
 
-   u64 start_tick, end_tick;
-
-   start_tick = svcGetSystemTick();
+   profiler_start();
 
    res = ctrnet_send(client, &size, 4, 0, &client_addr);
 
@@ -27,10 +25,8 @@ Result send_from_buffer(void* buffer, u32 size)
    if (res < 0)
       return res;
 
-   end_tick = svcGetSystemTick();
-
-   printf("sent : %i Bytes , time: %f\n", (int)size, (end_tick - start_tick) / 268123480.0);
-   printf("speed: %.3f KB/s\n", size * 268123480.0 / (1024.0 * (end_tick - start_tick)));
+   profiler_stop();
+   profiler_speed("sent", size);
 
    return res;
 

@@ -42,10 +42,10 @@ void ctrsh_wait_command(void)
       {
          if ((*cmd)->id == command_id)
          {
-            u64 start_tick = svcGetSystemTick();
+            profiler_start();
             (*cmd)->fn();
-            u64 end_tick = svcGetSystemTick();
-            printf("<%s> executed in %.3fms\n", (*cmd)->name, (end_tick - start_tick) / 268123.480);
+            profiler_stop();
+            profiler_print((*cmd)->name);
             break;
          }
 

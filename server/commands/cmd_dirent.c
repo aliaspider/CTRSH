@@ -13,28 +13,12 @@
 
 void command_dirent_entry()
 {
-   const wchar_t* dirpath_w = L"/";
-   wchar_t* dirpath_w_buffer = NULL;
-   char* dirpath_c = NULL;
-   int dirpath_len = ctrsh_recv_to_buffer((void**)&dirpath_c);
-   DEBUG_VAR(dirpath_len);
-   DEBUG_ERROR(dirpath_len);
-   if(dirpath_len)
-   {
-      DEBUG_STR(dirpath_c);
-      dirpath_w_buffer = malloc((dirpath_len + 1) * sizeof(wchar_t));
-      mbstowcs(dirpath_w_buffer, dirpath_c, dirpath_len + 1);
-      dirpath_w = dirpath_w_buffer;
-   }
-
-   FS_Path dirpath;
-   dirpath.type = PATH_UTF16;
-   dirpath.size = (wcslen(dirpath_w) + 1) * sizeof(*dirpath_w);
-   dirpath.data = dirpath_w;
-   _Static_assert(sizeof(*dirpath_w) == 2, "wchar_t");
-
+   char* path;
    Handle dirhandle;
-   DEBUG_ERROR(FSUSER_OpenDirectory(&dirhandle, sdmc_archive, dirpath));
+
+   DEBUG_ERROR(ctrsh_recv_to_buffer((void**)&path));
+   DEBUG_ERROR(sdmc_open_dir(&dirhandle, path));
+   free(path);
 
    int i;
    u32 dirent_buffer_size = 0x2000;
@@ -80,12 +64,11 @@ void command_dirent_entry()
    ((ctrsh_dirent*)(dirent_buffer + dirent_buffer_offset))->entry_size = 0;
    dirent_buffer_offset += 4;
 
-//   DEBUG_ERROR(ctrnet_send(socket, &dirent_buffer_offset, 4, 0, addr));
-//   DEBUG_ERROR(ctrnet_send(socket, dirent_buffer, dirent_buffer_offset, 0, addr));
+   //   DEBUG_ERROR(ctrnet_send(socket, &dirent_buffer_offset, 4, 0, addr));
+   //   DEBUG_ERROR(ctrnet_send(socket, dirent_buffer, dirent_buffer_offset, 0, addr));
    DEBUG_ERROR(send_from_buffer(dirent_buffer, dirent_buffer_offset));
    DEBUG_ERROR(svcCloseHandle(dirhandle));
    free(dirent_buffer);
-   free(dirpath_w_buffer);
 }
 
 

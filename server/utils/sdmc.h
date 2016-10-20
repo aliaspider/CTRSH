@@ -9,4 +9,6 @@ void sdmc_init();
 
 void sdmc_exit();
 
+Result sdmc_open_dir(Handle* out, const char* path);
+
 #endif // SDMC_H

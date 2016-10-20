@@ -17,9 +17,9 @@ Result recv_to_file(Handle file)
 
    int file_size, remaining;
 
-   u64 start_tick, end_tick;
 
-   start_tick = svcGetSystemTick();
+
+   profiler_start();
 
    res = ctrnet_recv(client, &file_size, 4, 0, &client_addr);
 
@@ -32,7 +32,8 @@ Result recv_to_file(Handle file)
 
    while (remaining > 0)
    {
-      res = ctrnet_recv(client, buffer, remaining < CTRSH_FILE_BUFFER_SIZE ? remaining : CTRSH_FILE_BUFFER_SIZE, 0, &client_addr);
+      res = ctrnet_recv(client, buffer, remaining < CTRSH_FILE_BUFFER_SIZE ? remaining : CTRSH_FILE_BUFFER_SIZE, 0,
+                        &client_addr);
 
       if (res < 0)
          return res;
@@ -40,12 +41,11 @@ Result recv_to_file(Handle file)
       remaining -= res;
       printf("recieving\n");
    }
+
    free(buffer);
 
-   end_tick = svcGetSystemTick();
-
-   printf("recieved : %i Bytes, time: %f\n", file_size, (end_tick - start_tick) / 268123480.0);
-   printf("speed: %.3f KB/s\n", file_size * 268123480.0 / (1024.0 * (end_tick - start_tick)));
+   profiler_stop();
+   profiler_speed("recieved", file_size);
 
    return file_size;
 }
@@ -56,14 +56,18 @@ Result ctrsh_recv_to_buffer(void** buffer)
    Result res;
 
    int file_size, recv_size;
-   u64 start_tick, end_tick;
-
-   start_tick = svcGetSystemTick();
+   profiler_start();
 
    res = ctrnet_recv(client, &file_size, 4, 0, &client_addr);
 
    if (res < 0)
       return res;
+
+   if(!file_size)
+   {
+      *buffer = NULL;
+      return 0;
+   }
 
    *buffer = malloc(file_size);
 
@@ -80,10 +84,8 @@ Result ctrsh_recv_to_buffer(void** buffer)
       printf("recieving\n");
    }
 
-   end_tick = svcGetSystemTick();
-
-   printf("recieved : %i Bytes, time: %f\n", recv_size, (end_tick - start_tick) / 268123480.0);
-   printf("speed: %.3f KB/s\n", recv_size * 268123480.0 / (1024.0 * (end_tick - start_tick)));
+   profiler_stop();
+   profiler_speed("recieved", recv_size);
 
    return file_size;
 }
